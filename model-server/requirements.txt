@@ -1,0 +1,2 @@
+# Deterministic demo mode uses only the Python standard library.
+# Optional production experimentation: ultralytics, torch, sam2
