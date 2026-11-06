@@ -1,5 +1,5 @@
 FROM python:3.13-alpine
 WORKDIR /app
-COPY model-server ./model-server
+COPY . .
 EXPOSE 8090
-CMD ["python", "model-server/server.py"]
+CMD ["python", "server.py"]

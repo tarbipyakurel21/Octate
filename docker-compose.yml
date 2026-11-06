@@ -1,11 +1,11 @@
 name: octate
 services:
-  app:
+  app-server:
     build:
-      context: .
+      context: ./app-server
       dockerfile: Dockerfile
     ports:
-      - "${OCTATE_PORT:-8080}:8080"
+      - "${OCTATE_API_PORT:-8080}:8080"
     environment:
       MODEL_SERVER_URL: http://model-server:8090
       OCTATE_DB: /app/data/octate.db
@@ -14,10 +14,18 @@ services:
     depends_on:
       model-server:
         condition: service_healthy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${OCTATE_PORT:-3000}:3000"
+    depends_on:
+      - app-server
   model-server:
     build:
-      context: .
-      dockerfile: model-server/Dockerfile
+      context: ./model-server
+      dockerfile: Dockerfile
     environment:
       PORT: 8090
       OCTATE_MODEL_MODE: ${OCTATE_MODEL_MODE:-demo}

@@ -1,11 +1,11 @@
-"""Octate product API and static UI server. Standard-library only for a small prototype."""
+"""Octate product API server. Standard-library only for a small prototype."""
 from __future__ import annotations
 import json, os, sqlite3, urllib.request, uuid
 from datetime import datetime, timezone
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parents[1]; DIST=ROOT/'dist'; DB=Path(os.getenv('OCTATE_DB',ROOT/'data/runtime/octate.db')); MODEL=os.getenv('MODEL_SERVER_URL','http://localhost:8090')
+ROOT=Path(__file__).resolve().parents[1]; DB=Path(os.getenv('OCTATE_DB',ROOT/'data/runtime/octate.db')); MODEL=os.getenv('MODEL_SERVER_URL','http://localhost:8090')
 DB.parent.mkdir(parents=True,exist_ok=True)
 def conn():
  c=sqlite3.connect(DB);c.row_factory=sqlite3.Row;c.executescript('''CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,name TEXT,video_name TEXT,status TEXT,frames INTEGER,fps REAL,updated_at TEXT);CREATE TABLE IF NOT EXISTS annotations(id TEXT PRIMARY KEY,project_id TEXT,payload TEXT);CREATE TABLE IF NOT EXISTS review_items(id TEXT PRIMARY KEY,project_id TEXT,frame INTEGER,score REAL,reasons TEXT,status TEXT,annotation_id TEXT);CREATE TABLE IF NOT EXISTS model_runs(id TEXT PRIMARY KEY,project_id TEXT,kind TEXT,status TEXT,created_at TEXT);''');return c
@@ -16,8 +16,7 @@ def seed():
 seed()
 def project(row):
  c=conn();n=c.execute("SELECT count(*) FROM review_items WHERE project_id=? AND status='pending'",(row['id'],)).fetchone()[0];c.close();return{'id':row['id'],'name':row['name'],'videoName':row['video_name'],'status':row['status'],'frames':row['frames'],'fps':row['fps'],'uncertain':n or (3 if row['id']=='demo' else 0),'updatedAt':row['updated_at']}
-class Handler(SimpleHTTPRequestHandler):
- def __init__(self,*a,**kw):super().__init__(*a,directory=str(DIST),**kw)
+class Handler(BaseHTTPRequestHandler):
  def body(self):n=int(self.headers.get('Content-Length','0'));return json.loads(self.rfile.read(n) or b'{}')
  def send_json(self,data,status=200):
   raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.send_header('Access-Control-Allow-Origin','*');self.end_headers();self.wfile.write(raw)
@@ -30,8 +29,7 @@ class Handler(SimpleHTTPRequestHandler):
   if len(parts)==4 and parts[:2]==['api','projects'] and parts[3]=='review':self.send_json([{'id':r['id'],'frame':r['frame'],'score':r['score'],'reasons':json.loads(r['reasons']),'status':r['status'],'annotationId':r['annotation_id']} for r in c.execute('SELECT * FROM review_items WHERE project_id=? ORDER BY score DESC',(parts[2],))]);return
   c.close()
   if self.path.startswith('/api/'):self.send_json({'error':'not found'},404);return
-  if not (DIST/self.path.lstrip('/')).is_file():self.path='/index.html'
-  super().do_GET()
+  self.send_json({'error':'not found'},404)
  def do_POST(self):
   data=self.body();parts=self.path.strip('/').split('/');c=conn()
   if self.path=='/api/projects':

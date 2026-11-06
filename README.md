@@ -21,16 +21,17 @@ Prerequisites: Docker Desktop with Compose.
 ./run_octate.sh
 ```
 
-Open [http://localhost:8080](http://localhost:8080). This is the one public application URL.
+Open [http://localhost:3000](http://localhost:3000). The React frontend runs on port 3000 and calls the API service on port 8080.
 
-For UI development, run `npm install && npm run dev`; in another terminal run `python app-server/server.py` and optionally `python model-server/server.py`.
+For UI development, run `cd frontend && npm install && npm run dev`; in another terminal run `python app-server/server.py` and optionally `python model-server/server.py`.
 
 ## Architecture
 
-- **App service:** Vite/React UI, a small standard-library Python product API, and SQLite persistence.
+- **Frontend service:** Vite/React UI in `frontend/`, served independently on port 3000.
+- **App server:** A small standard-library Python product API and SQLite persistence on port 8080.
 - **Model service:** explicit Detect, Segment, and Track endpoints. Deterministic demo mode works without weights.
 - **Canvas boundary:** `CvatCanvasAdapter` translates the small Octate schema to canvas object states. CVAT-specific types do not spread into the product.
-- **Runtime:** two application services, one Compose file, one startup command. No Django, PostgreSQL, Redis, RQ, OPA, Traefik, Nuclio, ClickHouse, Grafana, or enterprise tenancy.
+- **Runtime:** three application services, one Compose file, one startup command. No Django, PostgreSQL, Redis, RQ, OPA, Traefik, Nuclio, ClickHouse, Grafana, or enterprise tenancy.
 
 See [architecture](docs/architecture.md), [setup](docs/setup.md), and [limitations](docs/limitations.md).
 
