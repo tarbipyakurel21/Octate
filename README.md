@@ -13,6 +13,8 @@ Octate is a focused hatchathon proof of concept for turning surgical video into 
 5. Work through uncertain frames with human-readable reasons.
 6. Export approved annotations as Octate JSON.
 
+The Projects screen accepts video uploads. The app server extracts frames with FFmpeg and stores them in the runtime data volume.
+
 ## Start
 
 Prerequisites: Docker Desktop with Compose.
@@ -27,7 +29,7 @@ For UI development, run `cd frontend && npm install && npm run dev`; in another 
 
 ## Architecture
 
-- **Frontend service:** Vite/React UI in `frontend/`, served independently on port 3000.
+- **Frontend service:** Next.js/React UI in `frontend/`, served independently on port 3000.
 - **App server:** A small standard-library Python product API and SQLite persistence on port 8080.
 - **Model service:** explicit Detect, Segment, and Track endpoints. Deterministic demo mode works without weights.
 - **Canvas boundary:** `CvatCanvasAdapter` translates the small Octate schema to canvas object states. CVAT-specific types do not spread into the product.
