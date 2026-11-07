@@ -1,4 +1,5 @@
-import type { Annotation, CanvasObjectState, Project, ReviewItem, Task, TaskJob } from "../types";
+import type { CvatLabel, ServerAnnotations } from "./canvas/jobAnnotations";
+import type { Project, Task, TaskJob } from "../types";
 
 const headers = { "Content-Type": "application/json" };
 
@@ -181,63 +182,37 @@ export const api = {
 
         return normalizeTask(await request<CvatTask>(`/api/tasks/${created.id}`));
     },
-    frameUrl: (id: string, frame: number) => `/api/tasks/${id}/frames/${frame}`,
-    canvasScene: (id: string, frame: number) =>
-        request<{
-            frameData: { width: number; height: number; image: string | null };
-            objectStates: CanvasObjectState[];
-        }>(`/api/canvas/2d/${id}/frames/${frame}`),
-    saveCanvas: (id: string, frame: number, body: { objectStates: CanvasObjectState[]; width: number; height: number }) =>
-        request<{ objectStates: CanvasObjectState[] }>(`/api/canvas/2d/${id}/frames/${frame}`, {
+    previewUrl: (id: string) => `/api/tasks/${id}/preview`,
+    job: async (id: string) => normalizeJob(await request<CvatJob>(`/api/jobs/${id}`)),
+    jobLabels: (jobId: string) => collection<CvatLabel>(`/api/labels?job_id=${encodeURIComponent(jobId)}&page_size=500`),
+    jobFrameUrl: (jobId: string, frame: number) =>
+        `/api/jobs/${jobId}/data?type=frame&quality=compressed&number=${frame}`,
+    jobAnnotations: (jobId: string) => request<ServerAnnotations>(`/api/jobs/${jobId}/annotations/`),
+    saveJobAnnotations: (jobId: string, body: ServerAnnotations) =>
+        request<void>(`/api/jobs/${jobId}/annotations/`, {
             method: "PUT",
             headers,
             body: JSON.stringify(body),
         }),
-    canvas3dScene: (id: string, frame: number) =>
-        request<{
-            frameData: { number: number; width: number; height: number; deleted: boolean; cloud: string | null };
-            objectStates: CanvasObjectState[];
-        }>(`/api/canvas/3d/${id}/frames/${frame}`),
-    saveCanvas3d: (id: string, frame: number, objectStates: CanvasObjectState[]) =>
-        request<{ objectStates: CanvasObjectState[] }>(`/api/canvas/3d/${id}/frames/${frame}`, {
-            method: "PUT",
+    detectors: async () => {
+        const functions = await request<{ id: string; name: string; kind: string }[]>("/api/lambda/functions");
+        return functions.filter((item) => item.kind === "detector");
+    },
+    detect: (functionId: string, body: { task: number; job: number; frame: number; threshold?: number }) =>
+        request<DetectedShape[]>(`/api/lambda/functions/${encodeURIComponent(functionId)}`, {
+            method: "POST",
             headers,
-            body: JSON.stringify({ objectStates }),
+            body: JSON.stringify({ cleanup: false, quality: "original", conv_mask_to_poly: true, ...body }),
         }),
-    previewUrl: (id: string) => `/api/tasks/${id}/preview`,
-    annotations: (id: string) => request<Annotation[]>(`/api/projects/${id}/annotations`),
-    saveAnnotations: (id: string, items: Annotation[]) =>
-        request<{ saved: number }>(`/api/projects/${id}/annotations`, {
-            method: "PUT",
-            headers,
-            body: JSON.stringify(items),
-        }),
-    review: (id: string) => request<ReviewItem[]>(`/api/projects/${id}/review`),
-    reviewItem: (id: string, status: "approved" | "rejected") =>
-        request<ReviewItem>(`/api/review/${id}`, {
-            method: "PATCH",
-            headers,
-            body: JSON.stringify({ status }),
-        }),
-    infer: (
-        action: "detect" | "segment" | "track",
-        id: string,
-        frame: number,
-        size?: { width: number; height: number },
-    ) =>
-        request<{ annotations: Annotation[]; review_items: ReviewItem[]; mode?: string }>(
-            `/api/inference/${action}`,
-            {
-                method: "POST",
-                headers,
-                body: JSON.stringify({
-                    project_id: id,
-                    frame,
-                    width: size?.width ?? 0,
-                    height: size?.height ?? 0,
-                }),
-            },
-        ),
+};
+
+export type DetectedShape = {
+    type: string;
+    points: number[];
+    label?: string;
+    label_id?: number;
+    confidence?: number | string;
+    rotation?: number;
 };
 
 type CvatTask = {

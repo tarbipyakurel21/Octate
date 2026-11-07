@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SiteHeader, type DashboardSection } from "./components/SiteHeader";
 import { api } from "./lib/api";
 import { AboutPage } from "./screens/AboutPage";
+import { AnnotatePage } from "./screens/AnnotatePage";
 import { CreateTaskPage } from "./screens/CreateTaskPage";
 import { JobsPage } from "./screens/JobsPage";
 import { LandingPage } from "./screens/LandingPage";
@@ -21,9 +22,10 @@ type Route =
     | { screen: "jobs" }
     | { screen: "projects" }
     | { screen: "project"; projectId: string }
-    | { screen: "task"; taskId: string };
+    | { screen: "task"; taskId: string }
+    | { screen: "annotate"; taskId: string; jobId: string };
 
-const protectedScreens = new Set<Route["screen"]>(["tasks", "create", "jobs", "projects", "project", "task"]);
+const protectedScreens = new Set<Route["screen"]>(["tasks", "create", "jobs", "projects", "project", "task", "annotate"]);
 
 function locationPath(): string {
     if (typeof window === "undefined") return "/";
@@ -39,6 +41,8 @@ function routeFrom(path: string): Route {
     if (path === "/projects") return { screen: "projects" };
     const project = path.match(/^\/projects\/(\d+)$/);
     if (project) return { screen: "project", projectId: project[1] };
+    const job = path.match(/^\/tasks\/(\d+)\/jobs\/(\d+)$/);
+    if (job) return { screen: "annotate", taskId: job[1], jobId: job[2] };
     const task = path.match(/^\/tasks\/(\d+)$/);
     if (task) return { screen: "task", taskId: task[1] };
     if (path === "/tasks") return { screen: "tasks" };
@@ -46,7 +50,7 @@ function routeFrom(path: string): Route {
 }
 
 function sectionFor(route: Route): DashboardSection {
-    if (route.screen === "create" || route.screen === "task") return "tasks";
+    if (route.screen === "create" || route.screen === "task" || route.screen === "annotate") return "tasks";
     if (route.screen === "project") return "projects";
     if (route.screen === "login") return "login";
     return route.screen;
@@ -106,7 +110,7 @@ export default function App() {
     };
 
     const openAnnotation = (taskId: string, jobId: string) => {
-        window.location.assign(api.jobUrl(taskId, jobId));
+        requireAccount(api.jobUrl(taskId, jobId));
     };
 
     const annotateTask = async (taskId: string) => {
@@ -126,6 +130,10 @@ export default function App() {
 
     const needsAccount = protectedScreens.has(route.screen);
     const showLogin = route.screen === "login" || (account === "out" && needsAccount);
+
+    if (route.screen === "annotate" && account === "in") {
+        return <AnnotatePage key={route.jobId} taskId={route.taskId} jobId={route.jobId} onBack={() => go(`/tasks/${route.taskId}`)} />;
+    }
 
     return (
         <>

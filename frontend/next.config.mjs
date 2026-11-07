@@ -13,11 +13,6 @@ const makeConfig = (phase) => ({
             root,
             "../vendor/cvat/canvas/src/typescript/canvas.ts",
         );
-        config.resolve.alias["cvat-canvas3d-editor"] = path.resolve(
-            root,
-            "../vendor/cvat/canvas3d/src/typescript/canvas3d.ts",
-        );
-        config.resolve.alias["cvat-core"] = path.resolve(root, "../vendor/cvat/cvat-core");
         config.resolve.alias["lru-cache"] = path.resolve(
             root,
             "node_modules/lru-cache/dist/commonjs/index.js",
@@ -31,26 +26,8 @@ const makeConfig = (phase) => ({
     },
     async rewrites() {
         const origin = process.env.API_SERVER_URL ?? "http://localhost:8080";
-        // Dashboard routes are Next.js pages. These rewrites only cover the CVAT
-        // workflow that has no Octate page, including /tasks/:id/jobs/:jobId.
-        // afterFiles runs before dynamic routes, so keep that pattern specific.
-        const workflow = ["assets", "cloudstorages", "organizations", "requests", "analytics", "models", "webhooks", "quality"];
-        return {
-            afterFiles: [
-                { source: "/api/:path*", destination: `${origin}/api/:path*` },
-                { source: "/tasks/:taskId/jobs/:path*", destination: `${origin}/tasks/:taskId/jobs/:path*` },
-                { source: "/jobs/:path*", destination: `${origin}/jobs/:path*` },
-                { source: "/auth/:path*", destination: `${origin}/auth/:path*` },
-                ...workflow.flatMap((prefix) => [
-                    { source: `/${prefix}`, destination: `${origin}/${prefix}` },
-                    { source: `/${prefix}/:path*`, destination: `${origin}/${prefix}/:path*` },
-                ]),
-            ],
-            fallback: [
-                { source: "/projects/:path*", destination: `${origin}/projects/:path*` },
-                { source: "/tasks/:path*", destination: `${origin}/tasks/:path*` },
-            ],
-        };
+        // Every page, including the job editor, is a Next.js route. Only the API is proxied.
+        return [{ source: "/api/:path*", destination: `${origin}/api/:path*` }];
     },
 });
 

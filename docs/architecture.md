@@ -1,9 +1,11 @@
 # Architecture
 
-The browser loads the Next.js React frontend from the independent `frontend` service on port 3000. Next.js rewrites `/api` requests to the app-server service, which stores projects, annotations, review items, and model runs in SQLite and forwards inference to the model service. If the model service is unavailable, the product API uses the same deterministic contract so the demo stays usable.
+The browser loads the Next.js frontend. Traefik serves it on port 8080 for every path except `/api` (the CVAT server) and `/model-api` (the model gateway). In local development, Next.js rewrites `/api` to `API_SERVER_URL`.
 
-`CvatCanvasAdapter` is the only translation point between Octate annotations and CVAT-style object state. It handles shapes, tracks, keyframes, and interpolation. The interactive proof still renders an original lightweight SVG surface. The CVAT canvas and canvas3d TypeScript is vendored, unmodified, under `vendor/cvat/`. The app server exposes that contract at `/api/canvas/2d/<project>/frames/<frame>` and `/api/canvas/3d/<project>/frames/<frame>` without loading either package into the Next.js bundle.
+The CVAT server is the engine. It stores tasks, jobs, labels, and annotations in PostgreSQL, decodes uploaded video into frames, runs exports, and registers the model gateway's functions as lambdas. It runs from the official `cvat/server` image. CVAT's own UI, `cvat-ui`, and `cvat-core` are not used.
 
-The uncertainty queue uses understandable signals: detection confidence, temporal instability, tracking gaps or jumps, and shape anomalies. Review items always contain reasons.
+The job editor (`frontend/src/screens/AnnotatePage.tsx`) is a Next.js page at `/tasks/<id>/jobs/<job>`. It mounts CVAT's 2D canvas, which is vendored unmodified under `vendor/cvat/canvas` and imported as `cvat-canvas-editor`. The canvas only renders: `setup(frameData, objectStates)` draws a frame, and drawing, editing, selection, and grouping come back as DOM events.
 
-SQLite tables are the prototype domain: projects, annotations, review items, model runs, plus `canvas_frames` for the vendored canvas contract. Users, videos, labels, tracks, and settings remain implicit until they require independent persistence. The repository keeps frontend files under `frontend/`, API files under `app-server/`, and inference files under `model-server/`.
+`frontend/src/lib/canvas/jobAnnotations.ts` replaces the part of `cvat-core` the editor needs. It loads `/api/jobs/<job>/annotations/`, gives each shape and track a client id, builds canvas object states for one frame (interpolating tracks between keyframes), applies edits immutably so undo and redo are a history of snapshots, and writes the whole job back with `PUT`. Skeletons, tags, and intervals are kept and saved unchanged, but not rendered.
+
+Frames come from `/api/jobs/<job>/data?type=frame&quality=compressed&number=<frame>`, using task frame numbers. The editor caches recent frames and prefetches the next one.

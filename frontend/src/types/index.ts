@@ -1,16 +1,3 @@
-export type ShapeType = "rectangle" | "polygon";
-export type Point = { x: number; y: number };
-export type Annotation = {
-    id: string;
-    frame: number;
-    label: string;
-    type: ShapeType;
-    points: Point[];
-    confidence: number;
-    approved: boolean;
-    trackId?: string;
-    keyframe?: boolean;
-};
 export type Project = {
     id: string;
     name: string;
@@ -74,12 +61,4 @@ export type CanvasObjectState = {
     group: { id: number; color: string };
     color: string;
     keyframe: boolean;
-};
-export type ReviewItem = {
-    id: string;
-    frame: number;
-    score: number;
-    reasons: string[];
-    status: "pending" | "approved" | "rejected";
-    annotationId: string;
 };
