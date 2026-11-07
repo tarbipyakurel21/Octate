@@ -1,38 +1,184 @@
+# Copyright (C) CVAT.ai Corporation and contributors
+# SPDX-License-Identifier: MIT
+#
+# Octate uses the unmodified CVAT application as its product shell. Surgical
+# inference is deliberately isolated in octate-model-gateway.
+
 name: octate
+
+x-cvat-environment: &cvat-environment
+  CVAT_POSTGRES_HOST: cvat_db
+  CVAT_REDIS_INMEM_HOST: cvat_redis_inmem
+  CVAT_REDIS_INMEM_PORT: 6379
+  CVAT_REDIS_ONDISK_HOST: cvat_redis_ondisk
+  CVAT_REDIS_ONDISK_PORT: 6666
+  CVAT_LOG_IMPORT_ERRORS: "true"
+  CVAT_ALLOW_STATIC_CACHE: "${CVAT_ALLOW_STATIC_CACHE:-no}"
+  CVAT_NUM_PROXIES: "1"
+  CVAT_ANALYTICS: "0"
+  CVAT_SERVERLESS: "0"
+  SMOKESCREEN_OPTS: ""
+  no_proxy: "opa,cvat-server,cvat_db,cvat_redis_inmem,cvat_redis_ondisk,octate-model-gateway"
+
+x-cvat-dependencies: &cvat-dependencies
+  cvat_db:
+    condition: service_started
+  cvat_redis_inmem:
+    condition: service_started
+  cvat_redis_ondisk:
+    condition: service_started
+
+x-cvat-worker: &cvat-worker
+  image: cvat/server:${CVAT_VERSION:-v2.80.0}
+  restart: unless-stopped
+  depends_on: *cvat-dependencies
+  environment:
+    <<: *cvat-environment
+    CVAT_REDIS_INMEM_PASSWORD: ""
+  volumes:
+    - cvat_data:/home/django/data
+    - cvat_keys:/home/django/keys
+    - cvat_logs:/home/django/logs
+  networks:
+    - cvat
+
 services:
-  app-server:
-    build:
-      context: ./app-server
-      dockerfile: Dockerfile
-    ports:
-      - "${OCTATE_API_PORT:-8080}:8080"
+  cvat_db:
+    image: postgres:15-alpine
+    restart: unless-stopped
     environment:
-      MODEL_SERVER_URL: http://model-server:8090
-      OCTATE_DB: /app/data/octate.db
+      POSTGRES_USER: root
+      POSTGRES_DB: cvat
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
-      - octate-data:/app/data
+      - cvat_db:/var/lib/postgresql/data
+    networks:
+      - cvat
+
+  cvat_redis_inmem:
+    image: redis:7.2.11-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "100", "--appendonly", "yes"]
+    volumes:
+      - cvat_inmem_db:/data
+    networks:
+      - cvat
+
+  cvat_redis_ondisk:
+    image: apache/kvrocks:2.15.0
+    restart: unless-stopped
+    volumes:
+      - cvat_cache_db:/var/lib/kvrocks
+    networks:
+      - cvat
+
+  cvat_opa:
+    image: openpolicyagent/opa:1.12.2
+    restart: unless-stopped
+    command:
+      - run
+      - --server
+      - --addr=:8181
+      - --log-level=error
+      - --set=services.cvat.url=http://cvat-server:8080
+      - --set=bundles.cvat.service=cvat
+      - --set=bundles.cvat.resource=/api/auth/rules
+      - --set=bundles.cvat.polling.min_delay_seconds=5
+      - --set=bundles.cvat.polling.max_delay_seconds=15
+    networks:
+      cvat:
+        aliases:
+          - opa
+
+  cvat_server:
+    image: cvat/server:${CVAT_VERSION:-v2.80.0}
+    restart: unless-stopped
     depends_on:
-      model-server:
-        condition: service_healthy
+      <<: *cvat-dependencies
+      cvat_opa:
+        condition: service_started
+    environment:
+      <<: *cvat-environment
+      DJANGO_MODWSGI_EXTRA_ARGS: ""
+      ALLOWED_HOSTS: "*"
+      NUMPROCS: 2
+    command: init run server nginx
+    volumes:
+      - cvat_data:/home/django/data
+      - cvat_keys:/home/django/keys
+      - cvat_logs:/home/django/logs
+    labels:
+      traefik.enable: "true"
+      traefik.http.services.cvat-api.loadbalancer.server.port: "8080"
+      traefik.http.routers.cvat-api.rule: "Host(`${CVAT_HOST:-localhost}`) && (PathPrefix(`/api/`) || PathPrefix(`/static/`) || PathPrefix(`/admin`) || PathPrefix(`/django-rq`))"
+      traefik.http.routers.cvat-api.entrypoints: web
+    networks:
+      cvat:
+        aliases:
+          - cvat-server
+
+  # One worker consumes every queue needed by the local Octate workflow.
+  # Separate workers improve throughput in large installations but are not
+  # required for video ingestion, annotation, import, or export.
+  cvat_worker:
+    <<: *cvat-worker
+    command: run worker chunks import export annotation cleaning --with-scheduler
+
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    ports:
-      - "${OCTATE_PORT:-3000}:3000"
+    restart: unless-stopped
     depends_on:
-      - app-server
-  model-server:
+      - cvat_server
+    environment:
+      API_SERVER_URL: http://cvat_server:8080
+    labels:
+      traefik.enable: "true"
+      traefik.http.services.octate-ui.loadbalancer.server.port: "3000"
+      traefik.http.routers.octate-ui.rule: "Host(`${CVAT_HOST:-localhost}`)"
+      traefik.http.routers.octate-ui.entrypoints: web
+      traefik.http.routers.octate-ui.priority: "1"
+    networks:
+      - cvat
+
+  traefik:
+    image: traefik:v3.6
+    restart: unless-stopped
+    ports:
+      - "${OCTATE_PORT:-8080}:8080"
+    environment:
+      CVAT_HOST: "${CVAT_HOST:-localhost}"
+      TRAEFIK_ENTRYPOINTS_web_ADDRESS: :8080
+      TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT: "false"
+      TRAEFIK_PROVIDERS_DOCKER_NETWORK: octate_cvat
+      TRAEFIK_LOG_LEVEL: WARN
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - cvat
+
+  octate-model-gateway:
     build:
       context: ./model-server
-      dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       PORT: 8090
-      OCTATE_MODEL_MODE: ${OCTATE_MODEL_MODE:-demo}
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/api/models')"]
-      interval: 3s
-      timeout: 2s
-      retries: 10
+      OCTATE_MODEL_MODE: "${OCTATE_MODEL_MODE:-demo}"
+    expose:
+      - "8090"
+    ports:
+      - "127.0.0.1:${OCTATE_MODEL_PORT:-8091}:8090"
+    networks:
+      - cvat
+
 volumes:
-  octate-data:
+  cvat_db:
+  cvat_data:
+  cvat_keys:
+  cvat_logs:
+  cvat_inmem_db:
+  cvat_cache_db:
+
+networks:
+  cvat:

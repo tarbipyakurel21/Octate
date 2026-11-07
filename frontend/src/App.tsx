@@ -3,13 +3,12 @@ import { SiteHeader } from "./components/SiteHeader";
 import { AboutPage } from "./screens/AboutPage";
 import { AnnotatePage } from "./screens/AnnotatePage";
 import { CreateTaskPage } from "./screens/CreateTaskPage";
-import { JobsPage } from "./screens/JobsPage";
 import { LandingPage } from "./screens/LandingPage";
 import { ReviewPage } from "./screens/ReviewPage";
 import { TasksPage } from "./screens/TasksPage";
 import "./tasks.css";
 
-type Screen = "landing" | "about" | "tasks" | "create" | "jobs" | "annotate" | "review";
+type Screen = "landing" | "about" | "tasks" | "create" | "annotate" | "review";
 
 export default function App() {
     const [screen, setScreen] = useState<Screen>("landing");
@@ -46,7 +45,6 @@ export default function App() {
                     onCreated={() => navigate("tasks")}
                 />
             )}
-            {screen === "jobs" && <JobsPage onOpen={openTask} />}
             {screen === "annotate" && taskId && (
                 <AnnotatePage
                     taskId={taskId}

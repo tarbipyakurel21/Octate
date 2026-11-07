@@ -8,6 +8,6 @@ COPY frontend/src ./src
 COPY frontend/public ./public
 COPY vendor /app/vendor
 RUN npm run build
-ENV API_SERVER_URL=http://app-server:8080
+ENV API_SERVER_URL=http://cvat_server:8080
 EXPOSE 3000
 CMD ["npm", "run", "start"]

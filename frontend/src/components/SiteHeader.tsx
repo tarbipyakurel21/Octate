@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, FolderKanban, Github, House, Info } from "lucide-react";
+import { FolderKanban, Github, House, Info } from "lucide-react";
 import { OctateBrand } from "./OctateBrand";
 
 export function SiteHeader({
@@ -6,8 +6,8 @@ export function SiteHeader({
     onNavigate,
     visited = [],
 }: {
-    screen: "landing" | "about" | "tasks" | "create" | "jobs" | "review";
-    onNavigate: (screen: "landing" | "about" | "tasks" | "jobs") => void;
+    screen: "landing" | "about" | "tasks" | "create" | "review";
+    onNavigate: (screen: "landing" | "about" | "tasks") => void;
     visited?: string[];
 }) {
     return (
@@ -33,9 +33,6 @@ export function SiteHeader({
                 </a>
                 <button className={`${["tasks", "create", "review"].includes(screen) ? "active" : ""} ${visited.includes("tasks") ? "visited" : ""}`} onClick={() => onNavigate("tasks")}>
                     <FolderKanban /> Tasks
-                </button>
-                <button className={`${screen === "jobs" ? "active" : ""} ${visited.includes("jobs") ? "visited" : ""}`} onClick={() => onNavigate("jobs")}>
-                    <BriefcaseBusiness /> Jobs
                 </button>
             </nav>
         </header>

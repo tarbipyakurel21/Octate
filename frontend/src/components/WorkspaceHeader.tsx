@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, ClipboardList, LayoutDashboard } from "lucide-react";
+import { ClipboardList, LayoutDashboard } from "lucide-react";
 import { OctateBrand } from "./OctateBrand";
 
 export function WorkspaceHeader({
@@ -6,8 +6,8 @@ export function WorkspaceHeader({
     onNavigate,
     visited = [],
 }: {
-    screen: "tasks" | "jobs" | "create" | "annotate" | "review";
-    onNavigate: (screen: "tasks" | "jobs") => void;
+    screen: "tasks" | "create" | "annotate" | "review";
+    onNavigate: (screen: "tasks") => void;
     visited?: string[];
 }) {
     const tasksActive = screen === "tasks" || screen === "create" || screen === "annotate" || screen === "review";
@@ -19,9 +19,6 @@ export function WorkspaceHeader({
             <nav>
                 <button className={`${tasksActive ? "active" : ""} ${visited.includes("tasks") ? "visited" : ""}`} onClick={() => onNavigate("tasks")}>
                     <LayoutDashboard /> Dashboard
-                </button>
-                <button className={`${screen === "jobs" ? "active" : ""} ${visited.includes("jobs") ? "visited" : ""}`} onClick={() => onNavigate("jobs")}>
-                    <BriefcaseBusiness /> Jobs
                 </button>
             </nav>
             <span className="tk-session"><ClipboardList /><span>Annotation workspace</span></span>

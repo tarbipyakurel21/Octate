@@ -1,18 +1,128 @@
-"""Small explicit model interface with deterministic demo inference."""
-import json,os,uuid
-from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
-def inference(kind,data):
- frame=int(data.get('frame',0));w=float(data.get('width') or 100);h=float(data.get('height') or 100)
- def xy(x,y):return {'x':round(x/100*w,2),'y':round(y/100*h,2)}
- ident=str(uuid.uuid4());poly=kind=='segment';points=[xy(29,31),xy(48,22),xy(67,47),xy(46,66)] if poly else [xy(31,26),xy(58,61)];ann={'id':ident,'frame':frame,'label':'Tissue boundary' if poly else 'Surgical instrument','type':'polygon' if poly else 'rectangle','points':points,'confidence':.66 if kind=='detect' else .78,'approved':False,'trackId':f'track-{ident}' if kind=='track' else None,'keyframe':True};reason='Tracking gap or jump detected' if kind=='track' else 'Low detection confidence requires review';return{'annotations':[ann],'review_items':[{'id':str(uuid.uuid4()),'frame':frame,'score':.72,'reasons':[reason,'Shape differs from adjacent frame'],'status':'pending','annotationId':ident}],'mode':'deterministic-demo'}
-class H(BaseHTTPRequestHandler):
- def out(self,x,status=200):b=json.dumps(x).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b)
- def do_GET(self):
-  if self.path=='/api/models':self.out([{'id':'octate-demo','name':'Deterministic demo','capabilities':['detect','segment','track'],'loaded':True}])
-  elif self.path.startswith('/api/jobs/'):self.out({'id':self.path.rsplit('/',1)[-1],'status':'complete'})
-  else:self.out({'error':'not found'},404)
- def do_POST(self):
-  kind=self.path.rsplit('/',1)[-1];n=int(self.headers.get('Content-Length','0'));data=json.loads(self.rfile.read(n) or b'{}')
-  if kind not in {'detect','segment','track'}:self.out({'error':'unknown inference action'},404)
-  else:self.out(inference(kind,data))
-if __name__=='__main__':ThreadingHTTPServer(('0.0.0.0',int(os.getenv('PORT','8090'))),H).serve_forever()
+"""Octate's CVAT-facing model gateway.
+
+The gateway is independent of CVAT persistence. It publishes detector,
+interactor, and tracker capabilities and returns CVAT shape records. Demo mode
+is deterministic and needs no model weights.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+from urllib.parse import urlparse
+
+
+FUNCTIONS = {
+    "octate-instrument-detector": {
+        "name": "Octate surgical instrument detector",
+        "kind": "detector",
+        "labels": [{"id": 0, "name": "Surgical instrument", "type": "rectangle"}],
+    },
+    "octate-tissue-segmenter": {
+        "name": "Octate tissue segmenter",
+        "kind": "interactor",
+        "min_pos_points": 1,
+        "min_neg_points": 0,
+    },
+    "octate-instrument-tracker": {
+        "name": "Octate surgical instrument tracker",
+        "kind": "tracker",
+        "supported_shape_types": ["rectangle", "polygon", "mask"],
+    },
+}
+
+
+def _scaled_points(percent_points: list[tuple[float, float]], payload: dict[str, Any]) -> list[float]:
+    width = float(payload.get("width") or 100)
+    height = float(payload.get("height") or 100)
+    return [round(value, 2) for x, y in percent_points for value in (x / 100 * width, y / 100 * height)]
+
+
+def invoke(function_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Return CVAT-shaped demo output for a registered function."""
+    if function_id == "octate-instrument-detector":
+        return {
+            "shapes": [{
+                "type": "rectangle",
+                "label_id": 0,
+                "points": _scaled_points([(31, 26), (58, 61)], payload),
+                "attributes": [],
+                "confidence": 0.66,
+            }],
+            "mode": os.getenv("OCTATE_MODEL_MODE", "demo"),
+        }
+
+    if function_id == "octate-tissue-segmenter":
+        points = _scaled_points([(29, 31), (48, 22), (67, 47), (46, 66)], payload)
+        return {
+            "shapes": [{"type": "polygon", "points": points, "attributes": [], "confidence": 0.78}],
+            "mode": os.getenv("OCTATE_MODEL_MODE", "demo"),
+        }
+
+    if function_id == "octate-instrument-tracker":
+        source_shapes = payload.get("shapes") or []
+        shapes = []
+        for source in source_shapes:
+            points = [round(float(point) + 2, 2) for point in source.get("points", [])]
+            shapes.append({"type": source.get("type", "rectangle"), "points": points})
+        return {
+            "shapes": shapes,
+            "state": payload.get("state") or str(uuid.uuid4()),
+            "mode": os.getenv("OCTATE_MODEL_MODE", "demo"),
+        }
+
+    raise KeyError(function_id)
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "OctateModelGateway/1.0"
+
+    def _json(self, value: Any, status: int = 200) -> None:
+        body = json.dumps(value).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        if path == "/health":
+            self._json({"status": "ok", "mode": os.getenv("OCTATE_MODEL_MODE", "demo")})
+        elif path in {"/api/models", "/api/functions"}:
+            self._json([{"id": function_id, **spec} for function_id, spec in FUNCTIONS.items()])
+        elif path.startswith("/api/functions/"):
+            function_id = path.removeprefix("/api/functions/")
+            spec = FUNCTIONS.get(function_id)
+            self._json({"id": function_id, **spec} if spec else {"error": "function not found"}, 200 if spec else 404)
+        else:
+            self._json({"error": "not found"}, 404)
+
+    def do_POST(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except json.JSONDecodeError:
+            self._json({"error": "invalid JSON"}, 400)
+            return
+
+        if not path.startswith("/api/functions/"):
+            self._json({"error": "not found"}, 404)
+            return
+
+        function_id = path.removeprefix("/api/functions/")
+        try:
+            self._json(invoke(function_id, payload))
+        except KeyError:
+            self._json({"error": "function not found"}, 404)
+
+    def log_message(self, message: str, *args: Any) -> None:
+        print(f"{self.address_string()} - {message % args}")
+
+
+if __name__ == "__main__":
+    ThreadingHTTPServer(("0.0.0.0", int(os.getenv("PORT", "8090"))), Handler).serve_forever()
