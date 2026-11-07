@@ -1,11 +1,17 @@
-import type { Annotation, CanvasObjectState, ReviewItem, Task, TaskJob } from "../types";
+import type { Annotation, CanvasObjectState, Project, ReviewItem, Task, TaskJob } from "../types";
 
 const headers = { "Content-Type": "application/json" };
 
 function errorText(raw: string): string {
     try {
-        const body = JSON.parse(raw) as { error?: string };
+        const body = JSON.parse(raw) as {
+            error?: string;
+            detail?: string;
+            non_field_errors?: string[];
+        };
         if (body.error) return body.error;
+        if (typeof body.detail === "string") return body.detail;
+        if (body.non_field_errors?.length) return body.non_field_errors.join(" ");
     } catch {
         /* The server sometimes returns plain text. */
     }
@@ -42,13 +48,55 @@ export type TaskDraft = {
     file: File;
 };
 
+async function collection<T>(url: string): Promise<T[]> {
+    const page = await request<{ results?: T[] } | T[]>(url);
+    if (Array.isArray(page)) return page;
+    return page.results ?? [];
+}
+
 export const api = {
-    tasks: async () => {
-        const page = await request<{ results: CvatTask[] } | CvatTask[]>("/api/tasks?page_size=100");
-        return (Array.isArray(page) ? page : page.results).map(normalizeTask);
+    async currentUser() {
+        return request<{ username: string }>("/api/users/self");
+    },
+    async login(username: string, password: string) {
+        await fetch("/api/server/about", { credentials: "same-origin" });
+        const user = await request<{ username?: string } | undefined>("/api/auth/login", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ username, password }),
+        });
+        return { username: user?.username || username };
+    },
+    logout() {
+        return request<void>("/api/auth/logout", { method: "POST" });
+    },
+    tasks: async (projectId?: string) => {
+        const filter = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
+        return (await collection<CvatTask>(`/api/tasks?page_size=100${filter}`)).map(normalizeTask);
     },
     task: async (id: string) => normalizeTask(await request<CvatTask>(`/api/tasks/${id}`)),
-    jobs: () => request<TaskJob[]>("/api/jobs"),
+    projects: async () => (await collection<CvatProject>("/api/projects?page_size=100")).map(normalizeProject),
+    project: async (id: string) => normalizeProject(await request<CvatProject>(`/api/projects/${id}`)),
+    jobs: async () => (await collection<CvatJob>("/api/jobs?page_size=100")).map(normalizeJob),
+    taskJobs: async (taskId: string) =>
+        (await collection<CvatJob>(`/api/jobs?task_id=${encodeURIComponent(taskId)}&page_size=100`)).map(normalizeJob),
+    jobUrl: (taskId: string, jobId: string) => `/tasks/${taskId}/jobs/${jobId}`,
+    async exportTask(id: string, format: string) {
+        const started = await request<{ rq_id: string }>(
+            `/api/tasks/${id}/dataset/export?format=${encodeURIComponent(format)}&save_images=false&location=local`,
+            { method: "POST", headers, body: "{}" },
+        );
+        for (;;) {
+            const processing = await request<CvatRequest>(`/api/requests/${started.rq_id}`);
+            const status = String(processing.status || "").toLowerCase();
+            if (status === "finished") {
+                if (!processing.result_url) throw new Error("Export finished without a download");
+                return processing.result_url;
+            }
+            if (status === "failed") throw new Error(processing.message || "Export failed");
+            await wait(1000);
+        }
+    },
     async uploadTask(draft: TaskDraft, onProgress: (loaded: number, total: number) => void) {
         const created = await request<CvatTask>("/api/tasks", {
             method: "POST",
@@ -91,6 +139,8 @@ export const api = {
             headers: { "Content-Type": "application/json", "Upload-Finish": "true" },
             body: JSON.stringify({
                 image_quality: draft.imageQuality,
+                use_cache: true,
+                use_zip_chunks: false,
                 sorting_method: "lexicographical",
                 server_files: [],
                 remote_files: [],
@@ -99,8 +149,9 @@ export const api = {
 
         for (;;) {
             const processing = await request<CvatRequest>(`/api/requests/${upload.rq_id}`);
-            if (processing.status === "finished") break;
-            if (processing.status === "failed") {
+            const status = String(processing.status || "").toLowerCase();
+            if (status === "finished") break;
+            if (status === "failed") {
                 throw new Error(processing.message || "CVAT could not process the uploaded video");
             }
             await wait(1000);
@@ -180,11 +231,53 @@ type CvatTask = {
     jobs?: { completed?: number; count?: number };
 };
 
+type CvatJob = {
+    id: number;
+    task_id: number;
+    status?: string;
+    state?: string;
+    stage?: string;
+    start_frame?: number;
+    stop_frame?: number;
+    type?: string;
+};
+
+type CvatProject = {
+    id: number;
+    name: string;
+    owner?: { username: string } | null;
+    created_date?: string;
+    updated_date?: string;
+};
+
 type CvatRequest = {
-    status: "queued" | "started" | "finished" | "failed";
+    status: "queued" | "started" | "finished" | "failed" | string;
     message?: string;
     progress?: number;
+    result_url?: string | null;
 };
+
+function normalizeProject(project: CvatProject): Project {
+    const now = new Date().toISOString();
+    return {
+        id: String(project.id),
+        name: project.name,
+        owner: project.owner?.username || "Octate",
+        created_date: project.created_date ?? now,
+        updated_date: project.updated_date ?? now,
+    };
+}
+
+function normalizeJob(job: CvatJob): TaskJob {
+    return {
+        id: String(job.id),
+        task_id: String(job.task_id),
+        status: job.stage || job.state || job.status || "annotation",
+        start_frame: job.start_frame ?? 0,
+        stop_frame: job.stop_frame ?? 0,
+        type: job.type || "annotation",
+    };
+}
 
 function normalizeTask(task: CvatTask): Task {
     const size = task.size ?? 0;
@@ -195,7 +288,7 @@ function normalizeTask(task: CvatTask): Task {
         status: size > 0 ? "annotation" : "processing",
         size,
         mode: task.mode ?? "annotation",
-        labels: task.labels ?? [],
+        labels: Array.isArray(task.labels) ? task.labels : [],
         owner: task.owner ?? { username: "Octate" },
         created_date: task.created_date ?? now,
         updated_date: task.updated_date ?? now,

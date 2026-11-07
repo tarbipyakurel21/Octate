@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Upload } from "lucide-react";
 import { api, type TaskDraft } from "../lib/api";
+import { SURGICAL_PROTOCOLS } from "../lib/surgical";
 import type { Task } from "../types";
-
-const sources = ["My computer", "Connected file share", "Remote sources", "Cloud storage"];
 
 export function CreateTaskPage({ onCancel, onCreated }: { onCancel: () => void; onCreated: (task: Task) => void }) {
     const [name, setName] = useState("");
+    const [protocol, setProtocol] = useState(SURGICAL_PROTOCOLS[0].id);
     const [labelInput, setLabelInput] = useState("");
-    const [labels, setLabels] = useState<string[]>([]);
+    const [labels, setLabels] = useState<string[]>(SURGICAL_PROTOCOLS[0].labels);
     const [file, setFile] = useState<File | null>(null);
     const [imageQuality, setImageQuality] = useState(70);
     const [segmentSize, setSegmentSize] = useState(0);
@@ -63,6 +63,21 @@ export function CreateTaskPage({ onCancel, onCreated }: { onCancel: () => void; 
                     <input value={name} onChange={(event) => setName(event.target.value)} />
                 </label>
                 <label>
+                    Procedure
+                    <select
+                        value={protocol}
+                        onChange={(event) => {
+                            const next = SURGICAL_PROTOCOLS.find((item) => item.id === event.target.value);
+                            setProtocol(event.target.value);
+                            if (next) setLabels(next.labels);
+                        }}
+                    >
+                        {SURGICAL_PROTOCOLS.map((item) => (
+                            <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                    </select>
+                </label>
+                <label>
                     Labels
                     <span className="tk-label-row">
                         <input
@@ -94,27 +109,20 @@ export function CreateTaskPage({ onCancel, onCreated }: { onCancel: () => void; 
                     </ul>
                 )}
                 <div className="tk-actions">
-                    <button className="tk-primary" disabled={!name.trim() || !file || submitting} onClick={submit}>
-                        Save
+                    <button className="tk-primary" disabled={!name.trim() || !file || labels.length === 0 || submitting} onClick={submit}>
+                        {submitting ? "Creating" : "Create task"}
                     </button>
                     <button type="button" onClick={onCancel} disabled={submitting}>
                         Cancel
                     </button>
                 </div>
                 <p className="tk-required">
-                    Select files <i>*</i>
+                    Video <i>*</i>
                 </p>
-                <div className="tk-sources" role="tablist">
-                    {sources.map((source) => (
-                        <button key={source} type="button" className={source === "My computer" ? "active" : ""} disabled={source !== "My computer"}>
-                            {source}
-                        </button>
-                    ))}
-                </div>
                 <label className="tk-drop">
                     <Upload />
                     <strong>Click or drag a video to this area</strong>
-                    <span>FFmpeg extracts one JPEG for every frame after the upload finishes.</span>
+                    <span>CVAT decodes the video, builds frame chunks, and creates the annotation job.</span>
                     <input
                         type="file"
                         accept="video/*,.mp4,.mov,.avi,.mkv,.webm,.m4v"

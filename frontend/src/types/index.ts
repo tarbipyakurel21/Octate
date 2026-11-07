@@ -11,6 +11,13 @@ export type Annotation = {
     trackId?: string;
     keyframe?: boolean;
 };
+export type Project = {
+    id: string;
+    name: string;
+    owner: string;
+    created_date: string;
+    updated_date: string;
+};
 export type TaskLabel = { id: number; name: string; attributes?: unknown[] };
 export type TaskJob = {
     id: string;

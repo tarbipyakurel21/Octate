@@ -8,7 +8,7 @@ export function LandingPage({ onOpenTasks }: { onOpenTasks: () => void }) {
                     Turn surgical video into <em>trusted annotation.</em>
                 </h1>
                 <p>
-                    Upload a video as a task. FFmpeg extracts every frame, then you label those frames and run a model on the frame you are looking at.
+                    The Octate dashboard holds projects, tasks, and jobs. CVAT runs the annotation workflow underneath: shapes, tracks, masks, and the timeline.
                 </p>
                 <button className="primary landing-action" onClick={onOpenTasks}>
                     Open tasks <Upload />

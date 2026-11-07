@@ -1,27 +1,47 @@
-import { FolderKanban, Github, House, Info } from "lucide-react";
+import type { ReactNode } from "react";
+import { FolderKanban, Folders, Github, House, Info, ListTodo } from "lucide-react";
 import { OctateBrand } from "./OctateBrand";
 
+export type DashboardSection = "landing" | "about" | "projects" | "tasks" | "jobs" | "login";
+
 export function SiteHeader({
-    screen,
+    section,
+    account,
+    username,
     onNavigate,
+    onSignIn,
+    onSignOut,
     visited = [],
 }: {
-    screen: "landing" | "about" | "tasks" | "create" | "review";
-    onNavigate: (screen: "landing" | "about" | "tasks") => void;
+    section: DashboardSection;
+    account: "unknown" | "in" | "out";
+    username?: string | null;
+    onNavigate: (href: string) => void;
+    onSignIn: () => void;
+    onSignOut: () => void;
     visited?: string[];
 }) {
+    const item = (id: DashboardSection, href: string, label: string, icon: ReactNode) => (
+        <button
+            type="button"
+            className={`${section === id ? "active" : ""} ${visited.includes(id) ? "visited" : ""}`}
+            onClick={() => onNavigate(href)}
+        >
+            {icon} {label}
+        </button>
+    );
+
     return (
         <header className="site-header">
-            <button className="brand" aria-label="Octate home" onClick={() => onNavigate("landing")}>
+            <button className="brand" type="button" aria-label="Octate home" onClick={() => onNavigate("/")}>
                 <OctateBrand />
             </button>
             <nav className="landing-nav">
-                <button className={`${screen === "landing" ? "active" : ""} ${visited.includes("landing") ? "visited" : ""}`} onClick={() => onNavigate("landing")}>
-                    <House /> Home
-                </button>
-                <button className={`${screen === "about" ? "active" : ""} ${visited.includes("about") ? "visited" : ""}`} onClick={() => onNavigate("about")}>
-                    <Info /> About
-                </button>
+                {item("landing", "/", "Home", <House />)}
+                {item("about", "/about", "About", <Info />)}
+                {item("projects", "/projects", "Projects", <Folders />)}
+                {item("tasks", "/tasks", "Tasks", <FolderKanban />)}
+                {item("jobs", "/jobs", "Jobs", <ListTodo />)}
                 <a
                     href="https://github.com/tarbipyakurel21/Octate"
                     target="_blank"
@@ -31,9 +51,15 @@ export function SiteHeader({
                 >
                     <Github />
                 </a>
-                <button className={`${["tasks", "create", "review"].includes(screen) ? "active" : ""} ${visited.includes("tasks") ? "visited" : ""}`} onClick={() => onNavigate("tasks")}>
-                    <FolderKanban /> Tasks
-                </button>
+                {account === "in" && username ? (
+                    <button type="button" onClick={onSignOut} title={`Signed in as ${username}`}>
+                        {username}
+                    </button>
+                ) : account === "out" ? (
+                    <button type="button" className={section === "login" ? "active" : ""} onClick={onSignIn}>
+                        Sign in
+                    </button>
+                ) : null}
             </nav>
         </header>
     );

@@ -1,7 +1,7 @@
 "use client";
 
-import App from "../src/App";
+import Shell from "../src/shell";
 
 export default function Page() {
-    return <App />;
+    return <Shell />;
 }

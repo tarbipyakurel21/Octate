@@ -1,8 +1,8 @@
 # Octate
 
 Octate is a branded surgical-video annotation application with its own Next.js
-interface. CVAT runs headlessly behind it and owns video ingestion, task data,
-annotations, and exports. Octate adds an isolated local model gateway for
+interface. The dashboard is Octate. CVAT owns video ingestion, the annotation
+workflow, and exports. Octate adds an isolated local model gateway for
 surgical detection, segmentation, and tracking.
 
 > Octate is not intended for clinical or production use. Use synthetic or properly de-identified demo data. Models can produce incorrect annotations; human review is required. Authentication and authorization are intentionally simplified.
@@ -37,8 +37,9 @@ The model gateway health endpoint is available only on the local machine at
 
 ## Architecture
 
-- **Product shell:** the Octate Next.js dashboard and workflow. The generic
-  CVAT UI is not started.
+- **Dashboard:** the Octate Next.js workspace for home, projects, tasks, jobs, and sign-in.
+- **Annotation workflow:** the CVAT UI, served on the same origin. Annotate opens
+  `/tasks/<id>/jobs/<job>` in CVAT. CVAT keeps shapes, tracks, masks, and the timeline.
 - **Processing backend:** the CVAT Django API and processing pipeline, pinned
   to upstream `v2.80.0` and routed under `/api` on the same origin.
 - **Persistence:** PostgreSQL for CVAT records, named volumes for media, and
@@ -48,7 +49,9 @@ The model gateway health endpoint is available only on the local machine at
   enterprise-scale workers are intentionally omitted.
 - **Model gateway:** a separate Octate service publishes detector, interactor,
   and tracker contracts. Deterministic demo mode works without weights.
-- **Routing:** Traefik serves the CVAT UI and API from one origin on port 8080.
+- **Routing:** Traefik serves the Octate dashboard for `/`, `/projects`, `/tasks`,
+  and `/jobs`. A job URL stays on the CVAT UI. The CVAT API stays under `/api`.
+  All of this is on port 8080.
 
 See [architecture](docs/architecture.md), [setup](docs/setup.md), and [limitations](docs/limitations.md).
 

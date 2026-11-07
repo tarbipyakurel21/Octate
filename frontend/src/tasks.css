@@ -30,6 +30,7 @@
 .tk-progress b{display:block;height:100%;background:#1890ff;border-radius:99px}
 .tk-task>button:disabled{color:#bfbfbf;cursor:default}
 .tk-empty,.tk-error,.tk-note{font-size:13px}
+.tk-note{color:#595959;margin:0 0 14px}
 .tk-empty{color:#8c8c8c}
 .tk-error{color:#cf1322}
 .tk-title{margin:0 0 16px;font:600 20px Manrope,sans-serif}
@@ -39,7 +40,7 @@
 .tk-form h2{margin:0 0 18px;font:600 16px Manrope,sans-serif}
 .tk-form label{display:flex;flex-direction:column;gap:6px;font-size:14px;margin-bottom:14px}
 .tk-form label i{color:#ff4d4f;font-style:normal}
-.tk-form input[type="text"],.tk-form input:not([type]),.tk-form input[type="number"],.tk-label-row input,.tk-editor-bar input,.tk-editor-bar select{border:1px solid #d9d9d9;border-radius:2px;height:32px;padding:0 10px;color:#262626;background:#fff}
+.tk-form input[type="text"],.tk-form input[type="password"],.tk-form input:not([type]),.tk-form input[type="number"],.tk-form select,.tk-label-row input,.tk-editor-bar input,.tk-editor-bar select{border:1px solid #d9d9d9;border-radius:2px;height:32px;padding:0 10px;color:#262626;background:#fff}
 .tk-label-row{display:flex;gap:8px}
 .tk-label-row input{flex:1}
 .tk-labels{display:flex;gap:8px;flex-wrap:wrap;list-style:none;margin:0 0 14px;padding:0}
@@ -117,3 +118,82 @@
 .tk-top .tk-brand{padding:0;border:0;background:transparent}.tk-top nav button{display:flex;align-items:center;gap:7px}.tk-top nav button svg{width:15px}.tk-top nav button.visited:not(.active){color:#595959}.tk-top nav button.visited:not(.active)::after{display:none}.tk-session{margin-left:auto;display:flex;align-items:center;gap:6px;color:#8c8c8c;font-size:12px}.tk-session svg{width:14px}.tk-user{margin-left:4px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#595959;color:#fff;font-size:10px;font-weight:700}
 .tk-page-heading{display:flex;align-items:flex-end;justify-content:space-between;margin:0 0 20px}.tk-page-heading span{font-size:10px;letter-spacing:.15em;font-weight:700;color:#8c8c8c}.tk-page-heading h1{margin:4px 0;font:600 24px Manrope,sans-serif;color:#262626}.tk-page-heading p{margin:0;color:#8c8c8c;font-size:13px}.tk-create-action{height:36px;display:flex;align-items:center;gap:7px;padding:0 14px;border:1px solid #1890ff;border-radius:2px;background:#1890ff;color:#fff;font-weight:600;cursor:pointer}.tk-create-action:hover{background:#40a9ff;border-color:#40a9ff}.tk-create-action svg{width:16px}
 .anno-menu{display:flex;align-items:center;gap:7px;padding:0 9px!important;background:#fff!important;color:#262626!important;border:1px solid #d9d9d9!important}.anno-menu>span{font-size:12px}.anno-menu>i{font-style:normal;color:#bfbfbf}.anno-menu>b{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.anno-menu:hover{border-color:#1890ff!important}
+.anno-cvat-note{color:#8c8c8c;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anno-open-cvat{margin-left:auto;height:28px;display:inline-flex;align-items:center;border:1px solid #d9d9d9;border-radius:4px;background:#fff;color:#262626;padding:0 10px;font-size:12px;text-decoration:none}
+.anno-open-cvat:hover{border-color:#1890ff;color:#1890ff}
+.cvat-workspace{flex:1;min-height:0;display:flex;background:#111}
+.cvat-workspace iframe{flex:1;width:100%;height:100%;border:0;background:#1a1a1a}
+.anno-wait{padding:24px}
+
+/* Octate dashboard surfaces. CVAT keeps the annotation workflow. */
+.tk-page,.tk-create{
+  min-height:calc(100svh - 74px);
+  background:
+    radial-gradient(circle at 92% 0,#e7f0ff 0,transparent 32%),
+    radial-gradient(circle at 0 100%,#fff0f5 0,transparent 26%),
+    #fff;
+  color:#17131a;
+}
+.tk-page-heading span{color:#d96579}
+.tk-page-heading h1{font:600 clamp(32px,4vw,44px) Manrope,sans-serif;letter-spacing:-.045em;color:#17131a}
+.tk-page-heading p,.tk-empty,.tk-note,.tk-task-copy p,.tk-progress{color:#667085}
+.tk-create h1{color:#17131a;letter-spacing:-.04em}
+.tk-create-action,.tk-primary{border:0;border-radius:8px;background:#d96579;color:#fff}
+.tk-create-action:hover,.tk-primary:hover{background:#bd4f66;border-color:transparent}
+.tk-primary:disabled,.tk-create-action:disabled{background:#e7b3bf}
+.tk-task{
+  border:1px solid #dfe6f0;
+  border-radius:12px;
+  box-shadow:0 10px 28px rgba(40,120,214,.06);
+}
+.tk-task>button{
+  height:36px;
+  border:0;
+  border-radius:8px;
+  background:#d96579;
+  color:#fff;
+  font-weight:600;
+}
+.tk-actions button.tk-primary{background:#d96579;color:#fff;border:0}
+.tk-actions button.tk-primary:hover{background:#bd4f66}
+.tk-task>button:hover{background:#bd4f66}
+.tk-task>button:disabled{background:#f3e6ea;color:#b08996}
+.tk-thumb{border:0;border-radius:8px;background:#f4f7fb}
+.tk-search{border-color:#dfe6f0;border-radius:8px}
+.tk-filters button,.tk-actions button,.tk-text-action{
+  border:1px solid #dfe6f0;
+  border-radius:8px;
+  background:#fff;
+  color:#17131a;
+}
+.tk-filters button.active{color:#2878d6;border-color:#2878d6;background:#eef5ff}
+.tk-progress i{background:#e8eef8}
+.tk-progress b{background:#d96579}
+.tk-form{
+  border:1px solid #dfe6f0;
+  border-radius:14px;
+  box-shadow:0 10px 28px rgba(40,120,214,.06);
+}
+.tk-form h2,.tk-form label,.tk-required{color:#17131a}
+.tk-form input,.tk-form select,.tk-label-row input,.tk-export select{
+  border-color:#dfe6f0;
+  border-radius:8px;
+}
+.tk-labels li{background:#fff1f5;color:#a94358;border-radius:999px}
+.tk-drop{border-radius:12px;background:#fbfcfe}
+.tk-banner{border-radius:8px;background:#eef5ff;color:#2165b8}
+.tk-task-copy strong button{
+  border:0;
+  background:none;
+  padding:0;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+  text-align:left;
+}
+.tk-task-copy strong button:hover{color:#2878d6}
+.tk-task-copy strong span{color:#98a2b3}
+.tk-text-action{height:36px;padding:0 14px;cursor:pointer}
+.tk-export{display:flex;align-items:flex-end;gap:10px;margin:0 0 18px}
+.tk-export label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#667085}
+.tk-export select{height:36px;padding:0 10px;background:#fff;color:#17131a}

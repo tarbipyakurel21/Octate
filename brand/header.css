@@ -1,0 +1,55 @@
+.cvat-open-repository-button,
+.cvat-open-guide-button {
+    display: none !important;
+}
+
+.cvat-logo-icon.octate-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    width: max-content;
+    max-width: none;
+    height: 32px;
+    overflow: visible;
+    filter: none;
+}
+
+.cvat-signing-header .cvat-logo-icon.octate-logo {
+    height: 40px;
+    filter: none !important;
+}
+
+.cvat-logo-icon.octate-logo img {
+    width: 32px;
+    height: 32px;
+    display: block;
+    object-fit: contain;
+    filter: none;
+}
+
+.cvat-signing-header .cvat-logo-icon.octate-logo img {
+    width: 40px;
+    height: 40px;
+}
+
+.octate-wordmark {
+    display: flex;
+    letter-spacing: 0.08em;
+    font: 700 16px/1 ui-sans-serif, system-ui, sans-serif;
+}
+
+.octate-wordmark b:first-child {
+    color: #1c2340;
+}
+
+.octate-wordmark b:last-child {
+    color: #d94f77;
+}
+
+.cvat-signing-header .octate-wordmark b:first-child {
+    color: #fff;
+}
+
+.cvat-signing-header .octate-wordmark b:last-child {
+    color: #f3a0b4;
+}
