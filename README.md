@@ -60,6 +60,8 @@ The model gateway health endpoint is available only on the local machine at
   model gateway, and everything else to Next.js, all on port 8080.
 
 See [architecture](docs/architecture.md), [setup](docs/setup.md), and [limitations](docs/limitations.md).
+Planned work on model uncertainty and review prioritization is in
+[uncertainty quantification plans](docs/UNCERTAINTY_PLAN.md).
 
 ## Local models
 
