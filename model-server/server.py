@@ -2,7 +2,9 @@
 import json,os,uuid
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 def inference(kind,data):
- frame=int(data.get('frame',0));ident=str(uuid.uuid4());poly=kind=='segment';points=[{'x':29,'y':31},{'x':48,'y':22},{'x':67,'y':47},{'x':46,'y':66}] if poly else [{'x':31,'y':26},{'x':58,'y':61}];ann={'id':ident,'frame':frame,'label':'Tissue boundary' if poly else 'Surgical instrument','type':'polygon' if poly else 'rectangle','points':points,'confidence':.66 if kind=='detect' else .78,'approved':False,'trackId':f'track-{ident}' if kind=='track' else None,'keyframe':True};reason='Tracking gap or jump detected' if kind=='track' else 'Low detection confidence requires review';return{'annotations':[ann],'review_items':[{'id':str(uuid.uuid4()),'frame':frame,'score':.72,'reasons':[reason,'Shape differs from adjacent frame'],'status':'pending','annotationId':ident}],'mode':'deterministic-demo'}
+ frame=int(data.get('frame',0));w=float(data.get('width') or 100);h=float(data.get('height') or 100)
+ def xy(x,y):return {'x':round(x/100*w,2),'y':round(y/100*h,2)}
+ ident=str(uuid.uuid4());poly=kind=='segment';points=[xy(29,31),xy(48,22),xy(67,47),xy(46,66)] if poly else [xy(31,26),xy(58,61)];ann={'id':ident,'frame':frame,'label':'Tissue boundary' if poly else 'Surgical instrument','type':'polygon' if poly else 'rectangle','points':points,'confidence':.66 if kind=='detect' else .78,'approved':False,'trackId':f'track-{ident}' if kind=='track' else None,'keyframe':True};reason='Tracking gap or jump detected' if kind=='track' else 'Low detection confidence requires review';return{'annotations':[ann],'review_items':[{'id':str(uuid.uuid4()),'frame':frame,'score':.72,'reasons':[reason,'Shape differs from adjacent frame'],'status':'pending','annotationId':ident}],'mode':'deterministic-demo'}
 class H(BaseHTTPRequestHandler):
  def out(self,x,status=200):b=json.dumps(x).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b)
  def do_GET(self):

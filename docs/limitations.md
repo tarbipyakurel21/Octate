@@ -6,4 +6,4 @@
 - Demo inference is deterministic unless real model hooks are installed.
 - Model output can be wrong and always requires human review.
 - Octate JSON is the reliable export format; COCO and YOLO are intentionally deferred.
-- Folder upload and FFmpeg frame extraction are implemented, but the current interactive editor is still an original SVG surface. The repository currently contains a CVAT adapter boundary and attribution files, not the runnable CVAT canvas engine; integrating the actual CVAT canvas package remains a follow-up. The pre-refactor source remains recoverable from Git commit `441c9f9`.
+- Folder upload and FFmpeg frame extraction are implemented. The interactive editor is still the original SVG surface. The CVAT canvas and canvas3d TypeScript is vendored unmodified and is not bundled: canvas depends on svg.js, and canvas3d depends on three.js plus cvat-core, which is not included. `/api/canvas/2d/<project>/frames/<frame>` and `/api/canvas/3d/<project>/frames/<frame>` store the frame and object state those packages render.

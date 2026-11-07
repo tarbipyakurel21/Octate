@@ -47,4 +47,4 @@ CVAT is Copyright (C) CVAT.ai Corporation and contributors, licensed under MIT. 
 
 ## Migration history
 
-The obsolete CVAT application tree was removed after the focused replacement passed its build, API, persistence, and Docker checks. The complete pre-refactor source remains recoverable from Git commit `441c9f9`; the working tree contains only the focused application and attribution boundary.
+The obsolete CVAT application tree was removed after the focused replacement passed its build, API, persistence, and Docker checks. The pre-refactor source remains recoverable from Git commit `441c9f9`. The current tree vendors the upstream canvas and canvas3d TypeScript under `vendor/cvat/` and serves their object state from `/api/canvas/2d/<project>/frames/<frame>` and `/api/canvas/3d/<project>/frames/<frame>`.
