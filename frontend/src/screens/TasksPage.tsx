@@ -52,41 +52,39 @@ export function TasksPage({
 
     return (
         <main className="tk-page">
-            <div className="tk-page-heading">
-                <div>
-                    <span>WORKSPACE</span>
-                    <h1>Tasks</h1>
-                    <p>Surgical tasks in the Octate dashboard. Open one to run annotation in CVAT.</p>
+            <div className="tk-toolbar">
+                <label className="tk-search">
+                    <Search />
+                    <input
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search tasks"
+                        aria-label="Search tasks"
+                    />
+                </label>
+                <div className="tk-filters" role="group" aria-label="Filter tasks">
+                    {(["all", "annotation", "processing"] as const).map((item) => (
+                        <button key={item} type="button" className={status === item ? "active" : ""} onClick={() => setStatus(item)}>
+                            {item === "all" ? "All" : item === "annotation" ? "Ready" : "Extracting"}
+                        </button>
+                    ))}
                 </div>
                 <button className="tk-create-action" onClick={onCreate}>
                     <Plus /> Create task
                 </button>
             </div>
-            <div className="tk-toolbar">
-                <label className="tk-search">
-                    <input
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search ..."
-                        aria-label="Search tasks"
-                    />
-                    <Search />
-                </label>
-                <div className="tk-filters">
-                    {(["all", "annotation", "processing"] as const).map((item) => (
-                        <button key={item} className={status === item ? "active" : ""} onClick={() => setStatus(item)}>
-                            {item === "all" ? "All" : item === "annotation" ? "Ready" : "Extracting"}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            {error && <p className="tk-error">{error}</p>}
+            {error && <p className="tk-error-panel" role="alert">{error}</p>}
             {visible.length === 0 && !error && (
-                <p className="tk-empty">No tasks yet. Create one and upload a video. CVAT extracts the frames.</p>
+                <div className="tk-empty-panel">
+                    {tasks.length === 0
+                        ? "No tasks yet. Create one and upload a video. Frames are extracted after upload."
+                        : "No tasks match this search."}
+                </div>
             )}
             <ul className="tk-list">
                 {visible.map((task) => {
                     const jobs = task.progress.total_jobs;
+                    const ready = task.status === "annotation" && task.size >= 1;
                     return (
                         <li key={task.id} className="tk-task">
                             <TaskThumb id={task.id} />
@@ -97,20 +95,20 @@ export function TasksPage({
                                     </button>
                                 </strong>
                                 <p>{created(task)}</p>
-                                <p>Last updated {when(task.updated_date)}</p>
+                                <p>Updated {when(task.updated_date)}</p>
                             </div>
-                            <div className="tk-progress">
+                            <div className="tk-meta">
+                                <span className={`tk-status ${ready ? "is-ready" : "is-busy"}`}>
+                                    {task.status === "processing" ? "Extracting" : "Ready"}
+                                </span>
                                 <span>
                                     {task.status === "processing"
-                                        ? "Extracting frames"
+                                        ? "Frames are still being extracted"
                                         : `${task.size} frames · ${jobs} job${jobs === 1 ? "" : "s"}`}
                                 </span>
-                                <i>
-                                    <b style={{ width: task.status === "annotation" ? "100%" : "35%" }} />
-                                </i>
                             </div>
-                            <button disabled={task.status !== "annotation" || task.size < 1} onClick={() => onAnnotate(task)}>
-                                Annotate
+                            <button type="button" disabled={!ready} onClick={() => onAnnotate(task)}>
+                                Octate
                             </button>
                         </li>
                     );

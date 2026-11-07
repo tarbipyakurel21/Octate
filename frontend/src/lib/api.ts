@@ -2,6 +2,12 @@ import type { Annotation, CanvasObjectState, Project, ReviewItem, Task, TaskJob 
 
 const headers = { "Content-Type": "application/json" };
 
+function publicMessage(value: string): string {
+    return value
+        .replace(/Computer Vision Annotation Tool/gi, "Octate")
+        .replace(/\bcvat\b/gi, "Octate");
+}
+
 function errorText(raw: string): string {
     try {
         const body = JSON.parse(raw) as {
@@ -9,13 +15,13 @@ function errorText(raw: string): string {
             detail?: string;
             non_field_errors?: string[];
         };
-        if (body.error) return body.error;
-        if (typeof body.detail === "string") return body.detail;
-        if (body.non_field_errors?.length) return body.non_field_errors.join(" ");
+        if (body.error) return publicMessage(body.error);
+        if (typeof body.detail === "string") return publicMessage(body.detail);
+        if (body.non_field_errors?.length) return publicMessage(body.non_field_errors.join(" "));
     } catch {
         /* The server sometimes returns plain text. */
     }
-    return raw || "Request failed";
+    return publicMessage(raw || "Request failed");
 }
 
 function cookie(name: string): string {
@@ -42,11 +48,27 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export type TaskDraft = {
     name: string;
-    labels: string[];
     imageQuality: number;
     segmentSize: number;
     file: File;
 };
+
+type ModelCatalog = Record<string, { metadata?: { annotations?: { type?: string; spec?: string } } }>;
+
+async function detectorLabels(): Promise<{ name: string; type: "any"; attributes: [] }[]> {
+    const catalog = await request<ModelCatalog>("/model-api/api/functions");
+    const names: string[] = [];
+    for (const item of Object.values(catalog)) {
+        const annotations = item.metadata?.annotations;
+        if (annotations?.type !== "detector") continue;
+        const spec = JSON.parse(annotations.spec || "[]") as { name?: string }[];
+        for (const label of spec) {
+            if (label.name && !names.includes(label.name)) names.push(label.name);
+        }
+    }
+    if (!names.length) throw new Error("The model did not provide any labels");
+    return names.map((name) => ({ name, type: "any", attributes: [] }));
+}
 
 async function collection<T>(url: string): Promise<T[]> {
     const page = await request<{ results?: T[] } | T[]>(url);
@@ -104,7 +126,7 @@ export const api = {
             body: JSON.stringify({
                 name: draft.name,
                 segment_size: draft.segmentSize || 0,
-                labels: draft.labels.map((name) => ({ name, type: "any", attributes: [] })),
+                labels: await detectorLabels(),
             }),
         });
 
@@ -152,7 +174,7 @@ export const api = {
             const status = String(processing.status || "").toLowerCase();
             if (status === "finished") break;
             if (status === "failed") {
-                throw new Error(processing.message || "CVAT could not process the uploaded video");
+                throw new Error(publicMessage(processing.message || "The uploaded video could not be processed"));
             }
             await wait(1000);
         }

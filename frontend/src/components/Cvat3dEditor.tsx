@@ -105,7 +105,7 @@ export const Cvat3dEditor = forwardRef<Cvat3dEditorHandle, {
             document.addEventListener("keydown", onKeyDown);
             cleanups.push(() => document.removeEventListener("keydown", onKeyDown));
             onNotice("");
-        })().catch((error: unknown) => onNotice(error instanceof Error ? error.message : "The CVAT 3D canvas failed to start."));
+        })().catch((error: unknown) => onNotice(error instanceof Error ? error.message : "The 3D canvas failed to start."));
         return () => {
             disposed = true;
             cancelAnimationFrame(animation);

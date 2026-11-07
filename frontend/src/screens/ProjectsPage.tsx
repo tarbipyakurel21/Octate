@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Folders } from "lucide-react";
 import { api } from "../lib/api";
 import type { Project } from "../types";
 
@@ -20,20 +21,16 @@ export function ProjectsPage({ onOpen }: { onOpen: (project: Project) => void })
 
     return (
         <main className="tk-page">
-            <div className="tk-page-heading">
-                <div>
-                    <span>WORKSPACE</span>
-                    <h1>Projects</h1>
-                    <p>CVAT projects group related surgical tasks. Annotation still opens in CVAT.</p>
-                </div>
-            </div>
-            {error && <p className="tk-error">{error}</p>}
+            {error && <p className="tk-error-panel" role="alert">{error}</p>}
             {projects.length === 0 && !error && (
-                <p className="tk-empty">No projects yet. A task can be created on its own from Tasks.</p>
+                <div className="tk-empty-panel">No projects yet. A task can be created on its own from Tasks.</div>
             )}
             <ul className="tk-list">
                 {projects.map((project) => (
-                    <li key={project.id} className="tk-task">
+                    <li key={project.id} className="tk-task tk-task-plain">
+                        <div className="tk-glyph" aria-hidden="true">
+                            <Folders />
+                        </div>
                         <div className="tk-task-copy">
                             <strong>
                                 <button type="button" onClick={() => onOpen(project)}>

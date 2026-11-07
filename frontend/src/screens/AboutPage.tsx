@@ -1,23 +1,22 @@
 export function AboutPage() {
     return (
         <main className="about-page">
-            <div className="eyebrow">ABOUT OCTATE</div>
             <h1>Annotation infrastructure for surgical video.</h1>
             <p className="about-lede">
-                Projects, tasks, and jobs live in the Octate dashboard. CVAT decodes the video, stores the annotations, and opens its workspace when a job is ready.
+                Projects, tasks, and jobs live in the Octate dashboard. Uploaded video is decoded, annotations are stored, and the workspace opens when a job is ready.
             </p>
             <div className="about-grid">
                 <article>
                     <strong>Tasks</strong>
-                    <p>Create a task, choose a procedure template, and upload a video. CVAT stores the task and labels.</p>
+                    <p>Create a task and upload a video. The instrument detector supplies the labels stored with the task.</p>
                 </article>
                 <article>
                     <strong>Jobs</strong>
-                    <p>Each job is a frame range. Annotate leaves the dashboard and opens that job in CVAT.</p>
+                    <p>Each job is a frame range. Octate leaves the dashboard and opens that job.</p>
                 </article>
                 <article>
                     <strong>Annotation</strong>
-                    <p>Boxes, polygons, masks, interpolation, and the timeline are CVAT’s. Octate does not replace them.</p>
+                    <p>Boxes, polygons, masks, interpolation, and the timeline stay in the annotation workspace.</p>
                 </article>
             </div>
         </main>

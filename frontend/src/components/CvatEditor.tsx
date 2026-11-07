@@ -284,7 +284,7 @@ export const CvatEditor = forwardRef<CvatEditorHandle, {
             });
             onNotice("");
         })().catch((reason: unknown) => {
-            onNotice(reason instanceof Error ? reason.message : "The CVAT canvas failed to start.");
+            onNotice(reason instanceof Error ? reason.message : "The annotation canvas failed to start.");
         });
 
         return () => {

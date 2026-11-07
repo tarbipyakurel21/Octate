@@ -89,48 +89,128 @@ nav button{color:#667085}nav button.active{color:var(--ink);border-bottom-color:
 /* Shared brand: one implementation is used by the public, dashboard, and editor headers. */
 .octate-brand{display:inline-flex;align-items:center;gap:10px;white-space:nowrap}.octate-brand img{width:34px;height:34px;display:block;object-fit:contain}.octate-wordmark{display:flex;letter-spacing:.08em;font:700 16px Manrope,sans-serif}.octate-wordmark b{font-weight:700;color:#1c2340}.octate-wordmark b:last-child{color:#d94f77}.octate-brand.compact{gap:6px}.octate-brand.compact img{width:24px;height:24px}.octate-brand.compact .octate-wordmark{font-size:13px}
 .brand-logo,.brand-wordmark{display:none}
-nav button.visited:not(.active){color:#6c54b5}nav button.visited:not(.active)::after{content:"";width:5px;height:5px;border-radius:50%;background:#8b6bd6;margin-left:3px;align-self:center}
 
-/* Responsive public landing shell. */
-body{min-width:320px;overflow-x:hidden}
-.site-header{height:clamp(62px,7vw,74px);padding-inline:clamp(20px,5vw,72px);gap:clamp(20px,5vw,72px)}
-.site-header .brand{flex:none;padding:0;cursor:pointer}.site-header .landing-nav{margin-left:auto;margin-right:0;justify-content:flex-end;min-width:0;overflow-x:auto;scrollbar-width:none}.site-header .landing-nav::-webkit-scrollbar{display:none}.site-header .landing-nav a,.site-header .landing-nav button{height:42px;padding-inline:clamp(9px,1.5vw,17px);border-radius:9px;border-bottom:0;font-weight:600;white-space:nowrap}.site-header .landing-nav a:hover,.site-header .landing-nav button:hover{background:#f3f7ff}.site-header .landing-nav button.active{background:#eef4ff;color:#2568bb;box-shadow:inset 0 0 0 1px #d8e6fa}
-.landing{min-height:calc(100svh - clamp(62px,7vw,74px));padding:clamp(58px,10vh,110px) clamp(24px,9vw,140px);justify-content:center;background:radial-gradient(circle at 82% 20%,#dceaff 0,transparent min(34vw,420px)),radial-gradient(circle at 12% 88%,#fff0f5 0,transparent min(28vw,330px)),#fff}
-.landing-hero{width:min(100%,850px);max-width:none}.landing h1{width:min(100%,800px);max-width:none;font-size:clamp(44px,6.3vw,86px);line-height:.99;letter-spacing:-.06em;text-wrap:balance}.landing-hero>p{width:min(100%,620px);max-width:none;font-size:clamp(16px,1.4vw,19px);line-height:1.65}.landing-action{min-height:48px;padding-inline:21px;justify-content:center;box-shadow:0 10px 24px rgba(217,79,119,.22);transition:transform .18s ease,box-shadow .18s ease}.landing-action:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(217,79,119,.28)}
-
+/* One shell for the public pages. Workspace pages continue in tasks.css. */
+:root{--shell:clamp(20px,4vw,48px);--header-h:64px;--ink:#17131a;--muted:#667085;--line:#e6ebf2;--pink:#d96579;--blue:#2878d6}
+body{min-width:0;margin:0;padding:0;overflow-x:hidden;background:#f4f6f9;color:var(--ink);font-family:"Roboto Flex","Segoe UI",sans-serif}
+.site-header{position:sticky;top:0;z-index:20;height:var(--header-h);display:flex;align-items:center;gap:16px;padding:0 var(--shell);background:rgba(255,255,255,.96);border:0;border-bottom:1px solid var(--line);box-shadow:none;backdrop-filter:blur(16px);font-family:"Roboto Flex","Segoe UI",sans-serif}
+.site-header .brand{flex:none;height:auto;padding:0;letter-spacing:0;cursor:pointer}
+.site-header .octate-brand img{width:32px;height:32px}
+.site-header .octate-wordmark{font-family:Manrope,"Roboto Flex",sans-serif;font-size:18px;font-weight:700;letter-spacing:.01em}
+.site-header .landing-nav{align-self:stretch;margin:0 0 0 auto;height:100%;min-width:0;gap:2px;align-items:stretch;overflow:visible}
+.site-header .landing-nav a,.site-header .landing-nav button{height:100%;padding:0 12px;border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;color:#3d4450;font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:14px;font-weight:600;letter-spacing:0;gap:7px;white-space:nowrap}
+.site-header .landing-nav svg{width:16px;height:16px}
+.site-header .landing-nav button:hover{background:transparent;color:#0b3a82}
+.site-header .landing-nav button.active{background:transparent;color:#0b3a82;box-shadow:none;border-bottom-color:#0b3a82}
+.header-tools{display:flex;align-items:center;gap:8px;flex:none}
+.header-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:#3d4450;text-decoration:none}
+.header-icon:hover{background:#f4f7fb;color:#17131a}
+.header-icon svg{width:18px;height:18px}
+.header-account{min-width:96px;display:flex;justify-content:flex-end}
+.header-account-pending{width:96px;height:32px}
+.sign-in{height:36px;padding:0 14px;border:0;border-radius:8px;background:var(--pink);color:#fff;font:700 14px "Roboto Flex","Segoe UI",sans-serif;cursor:pointer}
+.sign-in:hover{background:#bd4f66}
+.account-menu{position:relative}
+.account-button{height:36px;max-width:220px;display:flex;align-items:center;gap:8px;padding:0 10px 0 4px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font:600 13px "Roboto Flex","Segoe UI",sans-serif;cursor:pointer}
+.account-button:hover,.account-button[aria-expanded="true"]{background:#f7f9fc;border-color:#c9d3e2}
+.account-chevron{width:14px;height:14px;color:#667085;flex:none}
+.account-button[aria-expanded="true"] .account-chevron{transform:rotate(180deg)}
+.account-dropdown{position:absolute;top:calc(100% + 6px);right:0;min-width:180px;padding:6px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(23,19,26,.1);z-index:40}
+.account-dropdown-user{margin:0;padding:8px 10px 6px;color:var(--muted);font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-logout{width:100%;display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:600 13px "Roboto Flex","Segoe UI",sans-serif;cursor:pointer;text-align:left}
+.account-logout:hover{background:#fff0f5;color:#bd4f66}
+.account-logout svg{width:15px;height:15px}
+.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--blue);color:#fff;font-size:12px;font-weight:700}
+.account-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.landing,.about-page,.auth-page{font-family:"Roboto Flex","Segoe UI",sans-serif}
+.landing{min-height:calc(100svh - var(--header-h));padding:clamp(56px,11vh,112px) var(--shell);justify-content:center;background:radial-gradient(circle at 86% 10%,#e7f0ff 0,transparent 32%),radial-gradient(circle at 6% 96%,#fff0f5 0,transparent 26%),#fff}
+.landing-hero{width:min(100%,760px)}
+.landing h1{width:auto;max-width:12em;margin:0;font-family:Sora,"Roboto Flex",sans-serif;font-weight:700;font-size:clamp(40px,5.2vw,68px);line-height:1.04;letter-spacing:-.035em;text-wrap:pretty;overflow-wrap:break-word}
+.landing-hero>p{width:auto;max-width:520px;margin:18px 0 0;font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:17px;font-weight:400;line-height:1.6;color:var(--muted)}
+.landing-action{min-height:44px;margin-top:28px;padding:0 18px;border-radius:8px;font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:15px;font-weight:700;box-shadow:none;transform:none}
+.landing-action:hover{transform:none;box-shadow:none}
+.about-page{width:auto;max-width:none;margin:0;min-height:calc(100svh - var(--header-h));padding:72px var(--shell) 96px;background:#fff;color:var(--ink)}
+.about-page>*{max-width:920px}
+.about-page h1{max-width:16em;margin:12px 0 16px;font-family:Sora,"Roboto Flex",sans-serif;font-weight:700;font-size:clamp(36px,4.4vw,56px);line-height:1.08;letter-spacing:-.035em}
+.about-lede{max-width:620px;margin:0;color:var(--muted);font-size:17px;line-height:1.6}
+.about-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:920px;margin-top:40px}
+.about-grid article{border:1px solid var(--line);border-radius:12px;background:#fff;padding:18px 18px 20px}
+.about-grid strong{display:block;font:700 15px "Roboto Flex","Segoe UI",sans-serif;color:var(--ink)}
+.about-grid p{margin:8px 0 0;color:var(--muted);font-size:14px;line-height:1.55}
+.auth-page{min-height:calc(100svh - var(--header-h));display:grid;place-items:center;padding:40px var(--shell) 72px;background:radial-gradient(circle at 82% 0,#e7f0ff 0,transparent 34%),radial-gradient(circle at 8% 100%,#fff0f5 0,transparent 28%),#fff}
+.auth-card{width:min(420px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 40px rgba(23,19,26,.06);padding:28px 28px 24px}
+.auth-card h1{margin:0;font-family:Sora,"Roboto Flex",sans-serif;font-size:28px;font-weight:700;letter-spacing:-.03em;color:var(--ink)}
+.auth-card>p{margin:8px 0 22px;color:var(--muted);font-size:14px;line-height:1.55}
+.auth-card label{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;font-size:13px;font-weight:600;color:#3d4450}
+.auth-card input{height:42px;border:1px solid #d5deea;border-radius:8px;padding:0 12px;background:#fff;color:var(--ink);font:400 15px "Roboto Flex","Segoe UI",sans-serif}
+.auth-card input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(40,120,214,.16)}
+.auth-card .tk-error{margin:0 0 12px}
+@media (max-width:860px){
+  .site-header{height:auto;flex-wrap:wrap;align-items:center;justify-content:flex-start;padding:10px 16px 8px;gap:8px}
+  .site-header .brand{width:auto;height:auto;justify-content:flex-start}
+  .site-header .octate-wordmark{font-size:17px}
+  .header-tools{order:2;margin-left:auto}
+  .site-header .landing-nav{order:3;width:100%;height:auto;margin:0;justify-content:flex-start;overflow-x:auto;scrollbar-width:none}
+  .site-header .landing-nav::-webkit-scrollbar{display:none}
+  .site-header .landing-nav a,.site-header .landing-nav button{flex:none;max-width:none;padding:0 10px;font-size:13px}
+  .landing{min-height:calc(100svh - 104px);padding:48px 20px 64px;align-items:flex-start}
+  .landing h1{max-width:100%;font-size:clamp(36px,10vw,52px)}
+  .landing-hero>p{font-size:16px}
+  .landing-action{width:auto}
+  .about-page{padding:48px 20px 72px}
+  .about-grid{grid-template-columns:1fr}
+  .account-name{display:none}
+  .account-button{padding-right:8px}
+  .header-account{min-width:0}
+}
+/* Dashboard bar matches the annotation workspace header. Roboto Flex is that UI face. */
+:root,html,body{background:#fff}
+body{padding-top:0}
+.site-header{height:56px;background:#fff;border-top:0;border-bottom:1px solid #f0f0f0;box-shadow:none;font-family:"Roboto Flex","Segoe UI",sans-serif}
+.site-header .octate-brand img{width:32px;height:32px}
+.site-header .octate-wordmark{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em}
+.site-header .landing-nav{align-self:stretch;height:100%;align-items:stretch}
+.site-header .landing-nav a,.site-header .landing-nav button{height:100%;border-radius:0;border-bottom:2px solid transparent;background:transparent;box-shadow:none;font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:14px;font-weight:500;letter-spacing:0;color:#434343}
+.site-header .landing-nav svg{width:16px;height:16px}
+.site-header .landing-nav a:hover,.site-header .landing-nav button:hover{background:transparent;color:#0b3a82}
+.site-header .landing-nav button.active,.site-header .landing-nav a.active{background:transparent;color:#0b3a82;box-shadow:none;border-bottom:2px solid #0b3a82}
+.landing{min-height:calc(100svh - 56px);font-family:"Roboto Flex","Segoe UI",sans-serif}
+.landing h1{font-family:Sora,"Roboto Flex",sans-serif;font-weight:600;font-size:clamp(40px,4.8vw,64px);line-height:1.08;letter-spacing:-.03em}
+.landing-hero>p{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:18px;font-weight:400;line-height:1.55;color:#434343}
+.landing-action{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:15px;font-weight:600}
 @media (max-width:760px){
-  .site-header{height:auto;min-height:64px;padding:10px 18px;align-items:center}.site-header .octate-brand img{width:30px;height:30px}.site-header .octate-wordmark{font-size:14px}.site-header .landing-nav{gap:2px}.site-header .landing-nav a,.site-header .landing-nav button{padding:0 9px;font-size:11px;gap:4px}.site-header .landing-nav svg{width:14px;height:14px}
-  .landing{min-height:calc(100svh - 64px);padding:64px 24px 70px;background:radial-gradient(circle at 90% 14%,#e2edff 0,transparent 52vw),radial-gradient(circle at 5% 88%,#fff0f5 0,transparent 58vw),#fff}.landing h1{font-size:clamp(42px,12vw,64px);line-height:1.01}.landing-hero>p{font-size:16px;line-height:1.6;margin-top:22px}.landing-action{margin-top:26px;width:fit-content}
+  .site-header{height:auto;min-height:56px}
+  .site-header .landing-nav a,.site-header .landing-nav button{font-size:13px}
+  .landing{min-height:calc(100svh - 56px)}
+  .landing h1{font-size:clamp(36px,10vw,52px)}
+  .landing-hero>p{font-size:16px}
 }
 @media (max-width:520px){
-  .site-header{flex-wrap:wrap;justify-content:center;padding:10px 14px 8px;gap:7px}.site-header .brand{width:100%;justify-content:center;height:35px}.site-header .landing-nav{order:2;width:100%;height:40px;justify-content:center;margin:0}.site-header .landing-nav a,.site-header .landing-nav button{flex:1;justify-content:center;max-width:105px;padding:0 5px}.site-header .landing-nav button.visited:not(.active)::after{display:none}
-  .landing{min-height:calc(100svh - 93px);padding:48px 20px 58px;align-items:flex-start}.landing h1{font-size:clamp(39px,12.5vw,56px);letter-spacing:-.055em}.landing-hero>p{font-size:15px}.landing-action{width:100%;max-width:260px}
+  .site-header{justify-content:flex-start;padding:10px 16px 8px}
+  .site-header .brand{width:auto;height:auto;justify-content:flex-start}
+  .site-header .octate-wordmark{font-size:16px}
+  .site-header .landing-nav{order:3;width:100%;height:auto;margin:0;justify-content:flex-start}
+  .site-header .landing-nav a,.site-header .landing-nav button{flex:none;max-width:none;font-size:13px}
+  .landing{min-height:calc(100svh - 104px);padding:40px 20px 56px}
+  .landing h1{max-width:100%;font-size:clamp(34px,11vw,46px);overflow-wrap:break-word}
+  .landing-hero>p{font-size:15px}
+  .landing-action{width:auto;max-width:none}
 }
-
-/* Dashboard chrome sits below the window edge. Type follows CVAT: Roboto Flex for UI, Sora for the title. */
-:root,html,body{background:#f0f2f5}
-body{padding-top:40px}
-.site-header{height:78px;background:#fff;border-top:1px solid #e4e6ea;border-bottom:1px solid #e4e6ea;box-shadow:0 1px 0 rgba(0,0,0,.03);font-family:"Roboto Flex","Segoe UI",sans-serif}
-.site-header .octate-brand img{width:42px;height:42px}
-.site-header .octate-wordmark{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:24px;font-weight:800;letter-spacing:.02em}
-.site-header .landing-nav a,.site-header .landing-nav button{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:17px;font-weight:700;letter-spacing:0;color:#262626}
-.site-header .landing-nav svg{width:20px;height:20px}
-.site-header .landing-nav a:hover,.site-header .landing-nav button:hover,.site-header .landing-nav .active{color:#1890ff}
-.landing{min-height:calc(100svh - 78px - 40px);font-family:"Roboto Flex","Segoe UI",sans-serif}
-.landing h1{font-family:Sora,"Roboto Flex",sans-serif;font-weight:700;font-size:clamp(52px,6.4vw,84px);line-height:1.08;letter-spacing:-.028em}
-.landing-hero>p{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:21px;font-weight:600;line-height:1.5;color:#303030}
-.landing-action{font-family:"Roboto Flex","Segoe UI",sans-serif;font-size:17px;font-weight:700}
-@media (max-width:760px){
-  .site-header{height:auto;min-height:72px}
-  .site-header .landing-nav a,.site-header .landing-nav button{font-size:15px}
-  .landing{min-height:calc(100svh - 72px - 40px)}
-  .landing h1{font-size:clamp(42px,11vw,60px);line-height:1.08}
-  .landing-hero>p{font-size:18px}
+:root{--header-h:56px}
+body{background:#f6f7f9}
+.landing,.about-page,.auth-page{background:#fff}
+.landing h1{overflow-wrap:break-word;text-wrap:pretty}
+.site-header{height:56px;padding:0 22px;gap:12px;border-bottom:1px solid #f0f0f0}
+.site-header .landing-nav{height:100%;align-items:stretch;gap:2px}
+.site-header .landing-nav button{height:100%;padding:0 12px;border-radius:0;border-bottom:2px solid transparent;background:transparent;color:#434343;font-weight:500}
+.site-header .landing-nav button:hover{background:transparent;color:#0b3a82}
+.site-header .landing-nav button.active,.site-header .landing-nav button.visited.active{background:transparent;color:#0b3a82;border-bottom-color:#0b3a82;box-shadow:none}
+.header-icon{width:32px;height:32px;border-radius:6px}
+.sign-in{height:32px;border-radius:6px}
+@media (max-width:860px){
+  .site-header{height:auto;min-height:56px;padding:8px 16px}
+  .site-header .landing-nav{height:auto}
+  .site-header .landing-nav button{height:36px;border-radius:0;border-bottom:2px solid transparent}
+  .site-header .landing-nav button.active{background:transparent;border-radius:0;border-bottom:2px solid #0b3a82}
 }
-@media (max-width:520px){
-  .site-header .octate-wordmark{font-size:20px}
-  .site-header .landing-nav a,.site-header .landing-nav button{font-size:14px;max-width:none}
-  .landing{min-height:calc(100svh - 93px - 40px)}
-  .landing h1{font-size:clamp(40px,12vw,52px)}
-  .landing-hero>p{font-size:17px}
-}
+.site-header .landing-nav button,.site-header .landing-nav a{border-radius:0}

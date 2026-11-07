@@ -114,8 +114,8 @@
 .tk-review h1{margin:0 0 8px;font-size:20px}
 .tk-review p{color:#595959;font-size:14px}
 
-/* Shared dashboard pieces keep the original restrained CVAT-like palette. */
-.tk-top .tk-brand{padding:0;border:0;background:transparent}.tk-top nav button{display:flex;align-items:center;gap:7px}.tk-top nav button svg{width:15px}.tk-top nav button.visited:not(.active){color:#595959}.tk-top nav button.visited:not(.active)::after{display:none}.tk-session{margin-left:auto;display:flex;align-items:center;gap:6px;color:#8c8c8c;font-size:12px}.tk-session svg{width:14px}.tk-user{margin-left:4px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#595959;color:#fff;font-size:10px;font-weight:700}
+/* Shared dashboard pieces keep the original restrained palette. */
+.tk-top .tk-brand{padding:0;border:0;background:transparent}.tk-top nav button{display:flex;align-items:center;gap:7px}.tk-top nav button svg{width:15px}.tk-top nav button.visited:not(.active){color:#595959}.tk-session{margin-left:auto;display:flex;align-items:center;gap:6px;color:#8c8c8c;font-size:12px}.tk-session svg{width:14px}.tk-user{margin-left:4px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#595959;color:#fff;font-size:10px;font-weight:700}
 .tk-page-heading{display:flex;align-items:flex-end;justify-content:space-between;margin:0 0 20px}.tk-page-heading span{font-size:10px;letter-spacing:.15em;font-weight:700;color:#8c8c8c}.tk-page-heading h1{margin:4px 0;font:600 24px Manrope,sans-serif;color:#262626}.tk-page-heading p{margin:0;color:#8c8c8c;font-size:13px}.tk-create-action{height:36px;display:flex;align-items:center;gap:7px;padding:0 14px;border:1px solid #1890ff;border-radius:2px;background:#1890ff;color:#fff;font-weight:600;cursor:pointer}.tk-create-action:hover{background:#40a9ff;border-color:#40a9ff}.tk-create-action svg{width:16px}
 .anno-menu{display:flex;align-items:center;gap:7px;padding:0 9px!important;background:#fff!important;color:#262626!important;border:1px solid #d9d9d9!important}.anno-menu>span{font-size:12px}.anno-menu>i{font-style:normal;color:#bfbfbf}.anno-menu>b{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.anno-menu:hover{border-color:#1890ff!important}
 .anno-cvat-note{color:#8c8c8c;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -125,75 +125,109 @@
 .cvat-workspace iframe{flex:1;width:100%;height:100%;border:0;background:#1a1a1a}
 .anno-wait{padding:24px}
 
-/* Octate dashboard surfaces. CVAT keeps the annotation workflow. */
+/* Octate dashboard. One column, one type scale, one set of controls. */
 .tk-page,.tk-create{
-  min-height:calc(100svh - 74px);
-  background:
-    radial-gradient(circle at 92% 0,#e7f0ff 0,transparent 32%),
-    radial-gradient(circle at 0 100%,#fff0f5 0,transparent 26%),
-    #fff;
+  width:min(1120px,calc(100% - 48px));
+  margin:0 auto;
+  min-height:calc(100svh - var(--header-h,64px));
+  padding:32px 0 72px;
+  background:transparent;
   color:#17131a;
+  font-family:"Roboto Flex","Segoe UI",sans-serif;
 }
-.tk-page-heading span{color:#d96579}
-.tk-page-heading h1{font:600 clamp(32px,4vw,44px) Manrope,sans-serif;letter-spacing:-.045em;color:#17131a}
-.tk-page-heading p,.tk-empty,.tk-note,.tk-task-copy p,.tk-progress{color:#667085}
-.tk-create h1{color:#17131a;letter-spacing:-.04em}
-.tk-create-action,.tk-primary{border:0;border-radius:8px;background:#d96579;color:#fff}
-.tk-create-action:hover,.tk-primary:hover{background:#bd4f66;border-color:transparent}
-.tk-primary:disabled,.tk-create-action:disabled{background:#e7b3bf}
+.tk-page-narrow{width:min(720px,calc(100% - 48px))}
+.tk-page-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 20px}
+.tk-page-heading span{font-size:11px;letter-spacing:.14em;font-weight:700;color:#d96579}
+.tk-page-heading h1{margin:4px 0;font:700 32px Sora,"Roboto Flex",sans-serif;letter-spacing:-.03em;color:#17131a}
+.tk-page-heading p,.tk-note,.tk-task-copy p{margin:0;color:#667085;font-size:14px;line-height:1.45}
+.tk-page-heading p{margin-top:4px;max-width:62ch}
+.tk-toolbar{display:flex;align-items:center;gap:12px;margin:0 0 16px;flex-wrap:wrap}
+.tk-search{display:flex;align-items:center;gap:8px;width:min(100%,320px);height:40px;padding:0 12px;background:#fff;border:1px solid #e6ebf2;border-radius:10px}
+.tk-search svg{width:16px;height:16px;color:#98a2b3;flex:none}
+.tk-search input{height:100%;border:0;padding:0;font-size:14px}
+.tk-filters{display:flex;margin-left:auto;border:1px solid #e6ebf2;border-radius:10px;overflow:hidden;background:#fff}
+.tk-filters button{height:40px;padding:0 14px;border:0;border-right:1px solid #e6ebf2;border-radius:0;background:#fff;color:#3d4450;font-size:14px;font-weight:600}
+.tk-filters button:last-child{border-right:0}
+.tk-filters button.active{background:#eef5ff;color:#1d5eae}
+.tk-filters button:hover:not(.active){background:#f7f9fc}
+.tk-list{display:flex;flex-direction:column;gap:10px}
 .tk-task{
-  border:1px solid #dfe6f0;
-  border-radius:12px;
-  box-shadow:0 10px 28px rgba(40,120,214,.06);
-}
-.tk-task>button{
-  height:36px;
-  border:0;
-  border-radius:8px;
-  background:#d96579;
-  color:#fff;
-  font-weight:600;
-}
-.tk-actions button.tk-primary{background:#d96579;color:#fff;border:0}
-.tk-actions button.tk-primary:hover{background:#bd4f66}
-.tk-task>button:hover{background:#bd4f66}
-.tk-task>button:disabled{background:#f3e6ea;color:#b08996}
-.tk-thumb{border:0;border-radius:8px;background:#f4f7fb}
-.tk-search{border-color:#dfe6f0;border-radius:8px}
-.tk-filters button,.tk-actions button,.tk-text-action{
-  border:1px solid #dfe6f0;
-  border-radius:8px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:14px 16px;
   background:#fff;
-  color:#17131a;
+  border:1px solid #e6ebf2;
+  border-radius:12px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04);
 }
-.tk-filters button.active{color:#2878d6;border-color:#2878d6;background:#eef5ff}
-.tk-progress i{background:#e8eef8}
-.tk-progress b{background:#d96579}
-.tk-form{
-  border:1px solid #dfe6f0;
-  border-radius:14px;
-  box-shadow:0 10px 28px rgba(40,120,214,.06);
-}
-.tk-form h2,.tk-form label,.tk-required{color:#17131a}
-.tk-form input,.tk-form select,.tk-label-row input,.tk-export select{
-  border-color:#dfe6f0;
+.tk-thumb{width:84px;height:60px;border:0;border-radius:8px;background:#f4f7fb;overflow:hidden;flex:none}
+.tk-thumb img{width:100%;height:100%;object-fit:cover}
+.tk-thumb-empty{color:#98a2b3}
+.tk-glyph{width:40px;height:40px;border-radius:10px;background:#eef5ff;color:#1d5eae;display:grid;place-items:center;flex:none}
+.tk-glyph svg{width:18px;height:18px}
+.tk-task-copy{flex:1;min-width:0}
+.tk-task-copy strong{display:block;font-size:15px;font-weight:600;line-height:1.3}
+.tk-task-copy strong button{display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:none;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.tk-task-copy strong button:hover{color:#1d5eae}
+.tk-task-copy strong span{color:#98a2b3;font-weight:600;margin-right:6px}
+.tk-task-copy p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk-task-copy p+p{margin-top:2px}
+.tk-meta{width:190px;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px;color:#667085;font-size:13px;text-align:right}
+.tk-status{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:999px;background:#f2f4f7;color:#475467;font-size:12px;font-weight:700;text-transform:capitalize}
+.tk-status.is-ready{background:#e8f7ef;color:#087443}
+.tk-status.is-busy{background:#fff6e8;color:#b86f12}
+.tk-task>button,.tk-create-action,.tk-primary,.tk-text-action,.tk-actions button{
+  height:36px;
+  padding:0 14px;
   border-radius:8px;
-}
-.tk-labels li{background:#fff1f5;color:#a94358;border-radius:999px}
-.tk-drop{border-radius:12px;background:#fbfcfe}
-.tk-banner{border-radius:8px;background:#eef5ff;color:#2165b8}
-.tk-task-copy strong button{
-  border:0;
-  background:none;
-  padding:0;
-  color:inherit;
-  font:inherit;
+  font:600 14px "Roboto Flex","Segoe UI",sans-serif;
   cursor:pointer;
-  text-align:left;
 }
-.tk-task-copy strong button:hover{color:#2878d6}
-.tk-task-copy strong span{color:#98a2b3}
-.tk-text-action{height:36px;padding:0 14px;cursor:pointer}
-.tk-export{display:flex;align-items:flex-end;gap:10px;margin:0 0 18px}
-.tk-export label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#667085}
-.tk-export select{height:36px;padding:0 10px;background:#fff;color:#17131a}
+.tk-task>button,.tk-create-action,.tk-primary{border:0;background:#d96579;color:#fff}
+.tk-task>button:hover,.tk-create-action:hover,.tk-primary:hover{background:#bd4f66}
+.tk-task>button:disabled,.tk-primary:disabled,.tk-create-action:disabled{background:#eef1f4;color:#98a2b3;opacity:1;cursor:default}
+.tk-text-action,.tk-actions button{display:inline-flex;align-items:center;gap:6px;border:1px solid #e6ebf2;background:#fff;color:#17131a}
+.tk-text-action:hover,.tk-actions button:hover{border-color:#c9d3e2;background:#f7f9fc}
+.tk-text-action svg{width:16px;height:16px}
+.tk-actions{display:flex;justify-content:flex-end;gap:8px;margin:18px 0 0}
+.tk-actions button.tk-primary{border:0;background:#d96579;color:#fff}
+.tk-actions button.tk-primary:hover{background:#bd4f66}
+.tk-empty-panel,.tk-error-panel{margin:8px 0 0;padding:28px 20px;border:1px dashed #d5deea;border-radius:12px;background:#fff;color:#667085;font-size:14px;line-height:1.5;text-align:center}
+.tk-error-panel,.tk-form .tk-error{border-style:solid;border-color:#f3c1c1;background:#fff6f6;color:#b42318;text-align:left}
+.tk-form{width:100%;background:#fff;border:1px solid #e6ebf2;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:24px 24px 20px}
+.tk-form h2{margin:0 0 16px;font:700 16px "Roboto Flex","Segoe UI",sans-serif}
+.tk-form label,.tk-required{display:flex;flex-direction:column;gap:6px;margin:0 0 14px;color:#17131a;font-size:13px;font-weight:600}
+.tk-form label i,.tk-required i{color:#d96579;font-style:normal}
+.tk-form input[type="text"],.tk-form input[type="password"],.tk-form input[type="number"],.tk-form input:not([type]),.tk-form select,.tk-export select{
+  height:42px;border:1px solid #d5deea;border-radius:8px;padding:0 12px;background:#fff;color:#17131a;font:400 15px "Roboto Flex","Segoe UI",sans-serif
+}
+.tk-form input:focus,.tk-form select:focus,.tk-export select:focus,.auth-card input:focus{outline:none;border-color:#2878d6;box-shadow:0 0 0 3px rgba(40,120,214,.16)}
+.tk-form input[type="range"]{height:auto;padding:0;border:0;box-shadow:none;accent-color:#d96579}
+.tk-form small,.tk-note{color:#667085;font-size:13px;font-weight:400;line-height:1.45}
+.tk-form .tk-note{display:block;margin:-4px 0 16px}
+.tk-drop{min-height:148px;border:1px dashed #c9d3e2;border-radius:12px;background:#fbfcfe;color:#667085;padding:18px}
+.tk-drop:hover,.tk-drop.has-file{border-color:#2878d6;background:#f5f9ff}
+.tk-drop strong{color:#17131a;font-weight:600}
+.tk-drop svg{width:22px;height:22px;color:#2878d6}
+.tk-disclosure{display:flex;align-items:center;gap:6px;width:100%;margin:4px 0;padding:8px 0;border:0;background:transparent;color:#1d5eae;font:600 14px "Roboto Flex","Segoe UI",sans-serif;cursor:pointer;text-align:left}
+.tk-disclosure svg{width:16px;height:16px;transform:rotate(-90deg);transition:transform .15s ease}
+.tk-disclosure.open svg{transform:none}
+.tk-banner{margin:0 0 12px;border-radius:8px;background:#eef5ff;color:#1d5eae;padding:10px 12px;font-size:13px}
+.tk-labels{margin:0 0 16px}
+.tk-labels li{background:#fff1f5;color:#a94358;border-radius:999px;padding:4px 10px}
+.tk-export{display:flex;align-items:flex-end;gap:10px;margin:0 0 18px;padding:14px 16px;background:#fff;border:1px solid #e6ebf2;border-radius:12px}
+.tk-export label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:#667085}
+.auth-card .tk-primary{display:flex;align-items:center;justify-content:center;width:100%;height:42px;margin-top:4px;font-size:15px}
+.auth-card .tk-primary:disabled{background:#eef1f4;color:#98a2b3;opacity:1}
+@media (max-width:800px){
+  .tk-page,.tk-create,.tk-page-narrow{width:min(100% - 32px,1120px)}
+  .tk-page-heading{flex-direction:column;align-items:flex-start}
+  .tk-page-heading h1{font-size:28px}
+  .tk-filters{margin-left:0}
+  .tk-task{flex-wrap:wrap;align-items:flex-start}
+  .tk-meta{width:auto;align-items:flex-start;text-align:left}
+  .tk-task>button{margin-left:auto}
+  .tk-export{flex-wrap:wrap}
+  .tk-export select{width:100%}
+}

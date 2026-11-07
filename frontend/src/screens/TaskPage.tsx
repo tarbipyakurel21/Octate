@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { api } from "../lib/api";
 import type { Task, TaskJob } from "../types";
 
-const FORMATS = ["CVAT for video 1.1", "CVAT for images 1.1", "COCO 1.0", "YOLO 1.1"];
+const FORMATS = [
+    { value: "CVAT for video 1.1", label: "Video 1.1" },
+    { value: "CVAT for images 1.1", label: "Images 1.1" },
+    { value: "COCO 1.0", label: "COCO 1.0" },
+    { value: "YOLO 1.1", label: "YOLO 1.1" },
+];
 
 export function TaskPage({
     taskId,
@@ -16,7 +22,7 @@ export function TaskPage({
     const [task, setTask] = useState<Task | null>(null);
     const [jobs, setJobs] = useState<TaskJob[]>([]);
     const [error, setError] = useState("");
-    const [format, setFormat] = useState(FORMATS[0]);
+    const [format, setFormat] = useState(FORMATS[0].value);
     const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
@@ -62,13 +68,13 @@ export function TaskPage({
                     <p>
                         {task
                             ? task.status === "processing"
-                                ? "CVAT is extracting frames for this task."
+                                ? "Extracting frames for this task."
                                 : `${task.size} frames · ${task.owner.username}`
-                            : "Loading task from CVAT…"}
+                            : "Loading task…"}
                     </p>
                 </div>
                 <button type="button" className="tk-text-action" onClick={onBack}>
-                    All tasks
+                    <ArrowLeft /> All tasks
                 </button>
             </div>
             {labels.length > 0 && (
@@ -80,33 +86,40 @@ export function TaskPage({
             )}
             <div className="tk-export">
                 <label>
-                    Export
+                    Export format
                     <select value={format} onChange={(event) => setFormat(event.target.value)}>
                         {FORMATS.map((item) => (
-                            <option key={item}>{item}</option>
+                            <option key={item.value} value={item.value}>
+                                {item.label}
+                            </option>
                         ))}
                     </select>
                 </label>
                 <button type="button" className="tk-primary" disabled={exporting || !task || task.size < 1} onClick={() => void exportDataset()}>
-                    {exporting ? "Exporting" : "Download"}
+                    {exporting ? "Exporting…" : "Download"}
                 </button>
             </div>
-            {error && <p className="tk-error">{error}</p>}
-            {jobs.length === 0 && !error && <p className="tk-empty">Waiting for CVAT to create the annotation job.</p>}
+            {error && <p className="tk-error-panel" role="alert">{error}</p>}
+            {jobs.length === 0 && !error && (
+                <div className="tk-empty-panel">Waiting for the annotation job.</div>
+            )}
             <ul className="tk-list">
                 {jobs.map((job) => (
-                    <li key={job.id} className="tk-task">
+                    <li key={job.id} className="tk-task tk-task-plain">
                         <div className="tk-task-copy">
                             <strong>
                                 Job #{job.id}
                                 {job.type === "ground_truth" ? " · ground truth" : ""}
                             </strong>
                             <p>
-                                Frames {job.start_frame}–{job.stop_frame} · {job.status}
+                                Frames {job.start_frame}–{job.stop_frame}
                             </p>
                         </div>
+                        <div className="tk-meta">
+                            <span className="tk-status">{job.status.replaceAll("_", " ")}</span>
+                        </div>
                         <button type="button" onClick={() => onAnnotate(job.id)}>
-                            Annotate
+                            Octate
                         </button>
                     </li>
                 ))}

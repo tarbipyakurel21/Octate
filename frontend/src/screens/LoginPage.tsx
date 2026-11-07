@@ -24,36 +24,29 @@ export function LoginPage({
     };
 
     return (
-        <main className="tk-create">
-            <h1>Sign in</h1>
-            <section className="tk-form">
-                <h2>Account</h2>
-                <p className="tk-note">
-                    Sign in with the CVAT account. The dashboard stays in Octate, and annotation opens in CVAT.
-                </p>
+        <main className="auth-page">
+            <form
+                className="auth-card"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    void submit();
+                }}
+            >
+                <h1>Sign in</h1>
+                <p>Sign in to the Octate workspace.</p>
                 <label>
                     Username
-                    <input value={username} autoComplete="username" onChange={(event) => setUsername(event.target.value)} />
+                    <input value={username} autoComplete="username" autoFocus onChange={(event) => setUsername(event.target.value)} />
                 </label>
                 <label>
                     Password
-                    <input
-                        type="password"
-                        value={password}
-                        autoComplete="current-password"
-                        onChange={(event) => setPassword(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") void submit();
-                        }}
-                    />
+                    <input type="password" value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} />
                 </label>
-                {error && <p className="tk-error">{error}</p>}
-                <div className="tk-actions">
-                    <button className="tk-primary" type="button" disabled={pending || !username.trim() || !password} onClick={() => void submit()}>
-                        {pending ? "Signing in" : "Sign in"}
-                    </button>
-                </div>
-            </section>
+                {error && <p className="tk-error" role="alert">{error}</p>}
+                <button className="tk-primary" type="submit" disabled={pending || !username.trim() || !password}>
+                    {pending ? "Signing in…" : "Sign in"}
+                </button>
+            </form>
         </main>
     );
 }

@@ -1,4 +1,4 @@
-import { Upload } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function LandingPage({ onOpenTasks }: { onOpenTasks: () => void }) {
     return (
@@ -8,10 +8,10 @@ export function LandingPage({ onOpenTasks }: { onOpenTasks: () => void }) {
                     Turn surgical video into <em>trusted annotation.</em>
                 </h1>
                 <p>
-                    The Octate dashboard holds projects, tasks, and jobs. CVAT runs the annotation workflow underneath: shapes, tracks, masks, and the timeline.
+                    The Octate dashboard holds projects, tasks, and jobs. The annotation workspace keeps shapes, tracks, masks, and the timeline.
                 </p>
                 <button className="primary landing-action" onClick={onOpenTasks}>
-                    Open tasks <Upload />
+                    Open tasks <ArrowRight />
                 </button>
             </section>
         </main>

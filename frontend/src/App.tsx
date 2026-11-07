@@ -152,7 +152,7 @@ export default function App() {
             />
             {account === "unknown" && needsAccount && route.screen !== "login" ? (
                 <main className="tk-page">
-                    <p className="tk-note">Loading workspace…</p>
+                    <div className="tk-empty-panel" role="status">Loading workspace…</div>
                 </main>
             ) : showLogin ? (
                 <LoginPage

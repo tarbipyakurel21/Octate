@@ -1,8 +1,8 @@
 # Copyright (C) CVAT.ai Corporation and contributors
 # SPDX-License-Identifier: MIT
 #
-# Octate's Next.js shell owns every dashboard route. The unmodified CVAT UI
-# owns the annotation workflow. Traefik serves both on one origin.
+# Default `docker compose up` starts the CVAT engine, the Octate dashboard,
+# the annotation bar, and the local model gateway.
 
 name: octate
 
@@ -16,7 +16,10 @@ x-cvat-environment: &cvat-environment
   CVAT_ALLOW_STATIC_CACHE: "${CVAT_ALLOW_STATIC_CACHE:-no}"
   CVAT_NUM_PROXIES: "1"
   CVAT_ANALYTICS: "0"
-  CVAT_SERVERLESS: "0"
+  CVAT_SERVERLESS: "1"
+  CVAT_NUCLIO_HOST: octate-model-gateway
+  CVAT_NUCLIO_PORT: "8090"
+  CVAT_NUCLIO_INVOKE_METHOD: dashboard
   SMOKESCREEN_OPTS: ""
   no_proxy: "opa,cvat-server,cvat_db,cvat_redis_inmem,cvat_redis_ondisk,octate-model-gateway"
 
@@ -26,6 +29,8 @@ x-cvat-dependencies: &cvat-dependencies
   cvat_redis_inmem:
     condition: service_started
   cvat_redis_ondisk:
+    condition: service_started
+  octate-model-gateway:
     condition: service_started
 
 x-cvat-worker: &cvat-worker
@@ -118,15 +123,12 @@ services:
         aliases:
           - cvat-server
 
-  # One worker consumes every queue needed by the local Octate workflow.
-  # Separate workers improve throughput in large installations but are not
-  # required for video ingestion, annotation, import, or export.
+  # One worker: import the upload, split frames, run model jobs, export, clean up.
   cvat_worker:
     <<: *cvat-worker
     command: run worker chunks import export annotation cleaning --with-scheduler
 
-  # Official CVAT annotation workflow. Octate branding is applied in front of it.
-  # Dashboard routes are served by the frontend service, not this UI.
+  # Official CVAT UI. The brand proxy in front of it adds the Octate bar.
   cvat_ui:
     image: cvat/ui:${CVAT_VERSION:-v2.80.0}
     restart: unless-stopped
@@ -201,11 +203,19 @@ services:
     restart: unless-stopped
     environment:
       PORT: 8090
-      OCTATE_MODEL_MODE: "${OCTATE_MODEL_MODE:-demo}"
+      OCTATE_MODEL_MODE: "${OCTATE_MODEL_MODE:-local}"
     expose:
       - "8090"
     ports:
       - "127.0.0.1:${OCTATE_MODEL_PORT:-8091}:8090"
+    labels:
+      traefik.enable: "true"
+      traefik.http.services.octate-models.loadbalancer.server.port: "8090"
+      traefik.http.routers.octate-models.rule: "Host(`${CVAT_HOST:-localhost}`) && PathPrefix(`/model-api`)"
+      traefik.http.routers.octate-models.entrypoints: web
+      traefik.http.routers.octate-models.priority: "150"
+      traefik.http.middlewares.octate-models-strip.stripprefix.prefixes: "/model-api"
+      traefik.http.routers.octate-models.middlewares: octate-models-strip
     networks:
       - cvat
 
