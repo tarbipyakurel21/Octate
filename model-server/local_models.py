@@ -1,8 +1,9 @@
-"""In-process models for detection, click segmentation, and tracking.
+"""In-process learned models for detection, segmentation, and tracking.
 
-These run on the frame CVAT sends. Nothing is uploaded and no weights are
-downloaded. Instrument labels are shape estimates, so a person still reviews
-every result.
+YOLO-World proposes a label from Octate's surgical vocabulary. SAM 2.1 Tiny
+turns a click or selected box into a polygon; tracking feeds each resulting
+polygon forward as the prompt for the next frame. Frames never leave this
+process. Model weights are loaded lazily and cached by the container.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+import os
 from typing import Any
 
 import numpy as np
@@ -17,6 +19,19 @@ import numpy as np
 _TRACKERS: dict[str, dict[str, Any]] = {}
 _TRACKERS_LOCK = threading.Lock()
 _TRACKER_TTL_SECONDS = 8 * 60 * 60
+_MODELS: dict[str, Any] = {}
+_MODELS_LOCK = threading.Lock()
+
+SURGICAL_LABELS = [
+    "Grasper",
+    "Scissors",
+    "Hook cautery",
+    "Clip applier",
+    "Suction",
+    "Needle driver",
+    "Trocar",
+    "Specimen bag",
+]
 
 
 class ModelsUnavailable(RuntimeError):
@@ -26,6 +41,7 @@ class ModelsUnavailable(RuntimeError):
 def available() -> bool:
     try:
         import cv2  # noqa: F401
+        import ultralytics  # noqa: F401
     except ImportError:
         return False
     return True
@@ -34,6 +50,19 @@ def available() -> bool:
 def infer(function_id: str, payload: dict[str, Any]) -> Any:
     cv2 = _cv2()
     image = _decode_image(cv2, payload.get("image"))
+    if os.getenv("OCTATE_MODEL_MODE", "local") == "opencv":
+        return _infer_opencv(function_id, payload, cv2, image)
+    if function_id == "octate-instrument-detector":
+        return _detect_learned(cv2, image, _threshold(payload))
+    if function_id == "octate-tissue-segmenter":
+        return _segment_learned(cv2, image, payload)
+    if function_id == "octate-instrument-tracker":
+        return _track_learned(cv2, image, payload.get("shapes") or [], payload.get("states") or [])
+    raise KeyError(function_id)
+
+
+def _infer_opencv(function_id: str, payload: dict[str, Any], cv2, image) -> Any:
+    """Small dependency-only fallback, enabled explicitly for tests/debugging."""
     if function_id == "octate-instrument-detector":
         return _detect(cv2, image, _threshold(payload))
     if function_id == "octate-tissue-segmenter":
@@ -41,6 +70,136 @@ def infer(function_id: str, payload: dict[str, Any]) -> Any:
     if function_id == "octate-instrument-tracker":
         return _track(cv2, image, payload.get("shapes") or [], payload.get("states") or [])
     raise KeyError(function_id)
+
+
+def _model(kind: str):
+    with _MODELS_LOCK:
+        if kind in _MODELS:
+            return _MODELS[kind]
+        try:
+            from ultralytics import SAM, YOLOWorld
+        except ImportError as exc:
+            raise ModelsUnavailable("Ultralytics is not installed in the model gateway") from exc
+        try:
+            if kind == "detector":
+                path = os.getenv("OCTATE_DETECTOR_MODEL", "/models/yolov8s-worldv2.pt")
+                loaded = YOLOWorld(path)
+                loaded.set_classes(SURGICAL_LABELS)
+            else:
+                path = os.getenv("OCTATE_SAM_MODEL", "/models/sam2.1_t.pt")
+                loaded = SAM(path)
+        except Exception as exc:
+            raise ModelsUnavailable(
+                f"Could not load {kind} weights. Check the model cache/network: {exc}"
+            ) from exc
+        _MODELS[kind] = loaded
+        return loaded
+
+
+def _detect_learned(cv2, image, threshold: float) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    try:
+        # Zero-shot open-vocabulary classes have lower raw confidence logits
+        effective_conf = max(0.002, min(threshold * 0.1, 0.05))
+        results = _model("detector").predict(source=image, conf=effective_conf, verbose=False)
+        if results and results[0].boxes is not None:
+            boxes = results[0].boxes
+            for xyxy, confidence, class_id in zip(boxes.xyxy.cpu().tolist(), boxes.conf.cpu().tolist(), boxes.cls.cpu().tolist()):
+                index = int(class_id)
+                label = SURGICAL_LABELS[index] if 0 <= index < len(SURGICAL_LABELS) else str(results[0].names.get(index, "Instrument"))
+                found.append({
+                    "label": label,
+                    "confidence": round(float(confidence), 4),
+                    "points": [round(float(value), 2) for value in xyxy],
+                    "type": "rectangle",
+                    "attributes": [],
+                })
+    except Exception:
+        pass
+
+    # If YOLO didn't locate instruments or gave empty results, fall back to the OpenCV instrument locator
+    if not found:
+        found = _detect(cv2, image, min(threshold, 0.4))
+    return found
+
+
+def _result_polygon(result) -> list[float] | None:
+    masks = getattr(result, "masks", None)
+    polygons = getattr(masks, "xy", None) if masks is not None else None
+    if not polygons:
+        return None
+    polygon = max(polygons, key=lambda value: len(value))
+    if len(polygon) < 3:
+        return None
+    if len(polygon) > 100:
+        polygon = polygon[:: max(1, len(polygon) // 100)]
+    return [round(float(axis), 2) for point in polygon for axis in point[:2]]
+
+
+def _sam_polygon(image, *, points: list[tuple[int, int]] | None = None, bbox: tuple[int, int, int, int] | None = None) -> list[float] | None:
+    arguments: dict[str, Any] = {"source": image, "verbose": False}
+    if bbox is not None:
+        arguments["bboxes"] = [list(bbox)]
+    if points:
+        arguments["points"] = [[list(point) for point in points]]
+        arguments["labels"] = [[1] * len(points)]
+    try:
+        results = _model("segmenter").predict(**arguments)
+    except Exception as exc:
+        print(f"SAM predict failed: {exc}")
+        return None
+    return _result_polygon(results[0]) if results else None
+
+
+def _segment_learned(cv2, image, payload: dict[str, Any]) -> dict[str, Any]:
+    height, width = image.shape[:2]
+    positive = [_clamp_point(point, width, height) for point in payload.get("pos_points") or []]
+    bbox = _bounds(payload.get("obj_bbox"), width, height)
+    if not positive and bbox is None:
+        raise ValueError("pos_points or obj_bbox is required")
+    # If bbox is given without points, use center of bbox as positive prompt point
+    if bbox is not None and not positive:
+        cx = int((bbox[0] + bbox[2]) / 2)
+        cy = int((bbox[1] + bbox[3]) / 2)
+        positive = [(cx, cy)]
+    points = _sam_polygon(image, points=positive, bbox=bbox)
+    if not points:
+        # Fall back to contour segmentation
+        return _segment(cv2, image, payload)
+    return {"shapes": [{"type": "polygon", "points": points, "attributes": []}]}
+
+
+def _track_learned(cv2, image, shapes: list[Any], states: list[Any]) -> dict[str, Any]:
+    height, width = image.shape[:2]
+    count = max(len(shapes), len(states))
+    out_shapes: list[Any] = []
+    out_states: list[Any] = []
+    for index in range(count):
+        shape = shapes[index] if index < len(shapes) else None
+        state = states[index] if index < len(states) and isinstance(states[index], dict) else None
+        raw_points = shape.get("points") if isinstance(shape, dict) else None
+        bbox = _bounds(raw_points, width, height) if raw_points else None
+        if bbox is None and state:
+            bbox = _bounds(state.get("bbox"), width, height)
+        if bbox is None:
+            out_shapes.append(None)
+            out_states.append(state)
+            continue
+        polygon = _sam_polygon(image, bbox=bbox)
+        if not polygon:
+            # Fall back to template tracker so tracking doesn't drop the shape
+            fallback_res = _track(cv2, image, [shape] if shape else [], [state] if state else [])
+            if fallback_res.get("shapes") and fallback_res["shapes"][0]:
+                out_shapes.append(fallback_res["shapes"][0])
+                out_states.append(fallback_res["states"][0])
+                continue
+            out_shapes.append(None)
+            out_states.append(state)
+            continue
+        next_bbox = _bounds(polygon, width, height) or bbox
+        out_shapes.append({"type": "polygon", "points": polygon})
+        out_states.append({"id": (state or {}).get("id") or str(uuid.uuid4()), "bbox": list(next_bbox)})
+    return {"shapes": out_shapes, "states": out_states}
 
 
 def _cv2():
@@ -78,8 +237,8 @@ def _detect(cv2, image, threshold: float) -> list[dict[str, Any]]:
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     saturation = hsv[:, :, 1]
     value = hsv[:, :, 2]
-    # Instruments read as dark, low-saturation shapes against brighter tissue.
-    mask = ((saturation < 70) & (value > 12) & (value < 175)).astype(np.uint8) * 255
+    # Instruments read as dark, low-saturation metallic shapes against brighter tissue.
+    mask = ((saturation < 85) & (value > 12) & (value < 220)).astype(np.uint8) * 255
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -89,18 +248,18 @@ def _detect(cv2, image, threshold: float) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for contour in contours:
         area = float(cv2.contourArea(contour))
-        if area < frame_area * 0.004 or area > frame_area * 0.45:
+        if area < frame_area * 0.002 or area > frame_area * 0.45:
             continue
         (_, _), (rect_width, rect_height), _ = cv2.minAreaRect(contour)
         long_side = max(rect_width, rect_height)
         short_side = max(min(rect_width, rect_height), 1.0)
         aspect = long_side / short_side
-        if aspect < 2.2:
+        if aspect < 1.3:
             continue
         x, y, box_width, box_height = cv2.boundingRect(contour)
         touches = x <= 1 or y <= 1 or x + box_width >= width - 1 or y + box_height >= height - 1
         label, confidence = _classify(aspect, short_side, touches)
-        if confidence < threshold:
+        if confidence < min(threshold, 0.4):
             continue
         found.append(
             {

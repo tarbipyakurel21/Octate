@@ -2,6 +2,7 @@ declare module "cvat-canvas-editor" {
     export class Canvas {
         html(): HTMLDivElement;
         setup(frameData: unknown, objectStates: unknown[]): void;
+        translateFromSVG(points: number[]): number[];
         draw(data: { enabled: boolean; shapeType?: string; crosshair?: boolean; rectDrawingMethod?: string }): void;
         dragCanvas(enable: boolean): void;
         fit(): void;

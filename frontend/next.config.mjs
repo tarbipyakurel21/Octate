@@ -26,8 +26,14 @@ const makeConfig = (phase) => ({
     },
     async rewrites() {
         const origin = process.env.API_SERVER_URL ?? "http://localhost:8080";
-        // Every page, including the job editor, is a Next.js route. Only the API is proxied.
-        return [{ source: "/api/:path*", destination: `${origin}/api/:path*` }];
+        // Model gateway is exposed on 8091 in dev and behind /model-api in Docker.
+        const modelOrigin = process.env.MODEL_SERVER_URL ?? "http://localhost:8091";
+        return [
+            // Every page, including the job editor, is a Next.js route. Only the API is proxied.
+            { source: "/api/:path*", destination: `${origin}/api/:path*` },
+            // Proxy the model gateway directly so the browser can reach /model-api in dev mode too.
+            { source: "/model-api/:path*", destination: `${modelOrigin}/:path*` },
+        ];
     },
 });
 

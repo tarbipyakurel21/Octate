@@ -9,5 +9,6 @@ COPY frontend/public ./public
 COPY vendor /app/vendor
 RUN npm run build
 ENV API_SERVER_URL=http://cvat_server:8080
+ENV MODEL_SERVER_URL=http://octate-model-gateway:8090
 EXPOSE 3000
 CMD ["npm", "run", "start"]

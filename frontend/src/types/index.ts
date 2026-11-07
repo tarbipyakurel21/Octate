@@ -5,11 +5,13 @@ export type Project = {
     created_date: string;
     updated_date: string;
 };
-export type TaskLabel = { id: number; name: string; attributes?: unknown[] };
+export type TaskLabel = { id: number; name: string; color?: string; attributes?: unknown[] };
 export type TaskJob = {
     id: string;
     task_id: string;
     status: string;
+    state: string;
+    stage: string;
     start_frame: number;
     stop_frame: number;
     type: string;

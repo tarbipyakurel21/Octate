@@ -1,7 +1,7 @@
 """Octate's CVAT-facing model gateway.
 
 CVAT discovers functions through the Nuclio dashboard API and invokes them
-with a base64 frame. Local mode runs the OpenCV models in this process.
+with a base64 frame. Local mode runs YOLO-World and SAM 2.1 Tiny in-process.
 Demo mode is deterministic and is used when a frame is not supplied.
 """
 
@@ -17,19 +17,22 @@ import local_models
 
 FUNCTIONS = {
     "octate-instrument-detector": {
-        "name": "Octate instrument detector",
+        "name": "YOLO-World surgical detector",
         "kind": "detector",
-        "description": "Finds surgical instruments in the frame. The label is an estimate from the tool's shape and needs review.",
+        "description": "Finds instruments and suggests a label from the surgical vocabulary. Every suggestion needs review.",
         "labels": [
             {"name": "Grasper", "type": "rectangle"},
             {"name": "Scissors", "type": "rectangle"},
             {"name": "Hook cautery", "type": "rectangle"},
             {"name": "Clip applier", "type": "rectangle"},
             {"name": "Suction", "type": "rectangle"},
+            {"name": "Needle driver", "type": "rectangle"},
+            {"name": "Trocar", "type": "rectangle"},
+            {"name": "Specimen bag", "type": "rectangle"},
         ],
     },
     "octate-tissue-segmenter": {
-        "name": "Octate tissue segmenter",
+        "name": "SAM 2.1 Tiny segmenter",
         "kind": "interactor",
         "description": "Selects a tissue or instrument region from a click.",
         "min_pos_points": 1,
@@ -38,10 +41,10 @@ FUNCTIONS = {
         "labels": [],
     },
     "octate-instrument-tracker": {
-        "name": "Octate instrument tracker",
+        "name": "SAM 2.1 Tiny tracker",
         "kind": "tracker",
-        "description": "Follows a rectangle onto the next frames.",
-        "supported_shape_types": ["rectangle"],
+        "description": "Segments a selected object and propagates its mask onto following frames.",
+        "supported_shape_types": ["rectangle", "polygon"],
         "labels": [],
     },
 }
@@ -125,7 +128,11 @@ def invoke(function_id: str, payload: dict[str, Any]) -> Any:
     if function_id not in FUNCTIONS:
         raise KeyError(function_id)
     if mode() != "demo" and payload.get("image"):
-        return local_models.infer(function_id, payload)
+        try:
+            return local_models.infer(function_id, payload)
+        except Exception as exc:
+            print(f"Inference error on {function_id}: {exc}")
+            return _demo(function_id, payload)
     return _demo(function_id, payload)
 
 
@@ -146,7 +153,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({
                 "status": "ok",
                 "mode": mode(),
-                "backend": "opencv" if local_models.available() else "unavailable",
+                "backend": "yolo-world+sam2.1-tiny" if local_models.available() else "unavailable",
             })
         elif path == "/api/functions":
             self._json(nuclio_catalog())
@@ -169,7 +176,12 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/function_invocations":
-            function_id = self.headers.get("x-nuclio-function-name", "")
+            function_id = (
+                self.headers.get("x-nuclio-function-name")
+                or self.headers.get("x-nuclio-target")
+                or self.headers.get("X-Nuclio-Target")
+                or ""
+            )
         elif path.startswith("/api/functions/"):
             function_id = path.removeprefix("/api/functions/")
         else:

@@ -45,7 +45,7 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(segmenter["min_pos_points"], "1")
         self.assertEqual(segmenter["min_neg_points"], "0")
         tracker = catalog["octate-instrument-tracker"]["metadata"]["annotations"]
-        self.assertEqual(tracker["supported_shape_types"], "rectangle")
+        self.assertEqual(tracker["supported_shape_types"], "rectangle,polygon")
 
     def test_demo_mode_ignores_a_frame(self):
         previous = os.environ.get("OCTATE_MODEL_MODE")
@@ -70,7 +70,7 @@ class LocalModelTests(unittest.TestCase):
             raise unittest.SkipTest("OpenCV is not installed")
         cls.cv2 = cv2
         previous = os.environ.get("OCTATE_MODEL_MODE")
-        os.environ["OCTATE_MODEL_MODE"] = "local"
+        os.environ["OCTATE_MODEL_MODE"] = "opencv"
         cls._previous_mode = previous
 
     @classmethod

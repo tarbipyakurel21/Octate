@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { SiteHeader, type DashboardSection } from "./components/SiteHeader";
 import { api } from "./lib/api";
 import { AboutPage } from "./screens/AboutPage";
-import { AnnotatePage } from "./screens/AnnotatePage";
+const AnnotatePage = dynamic(() => import("./screens/AnnotatePage").then((mod) => mod.AnnotatePage), { ssr: false });
 import { CreateTaskPage } from "./screens/CreateTaskPage";
 import { JobsPage } from "./screens/JobsPage";
 import { LandingPage } from "./screens/LandingPage";

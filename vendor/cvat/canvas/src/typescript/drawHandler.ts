@@ -470,7 +470,8 @@ export class DrawHandlerImpl implements DrawHandler {
             if (e.button === 0 && !e.altKey) {
                 if (initialPoint.x === null || initialPoint.y === null) {
                     const translated = translateToSVG(this.canvas.node as any as SVGSVGElement, [e.clientX, e.clientY]);
-                    [initialPoint.x, initialPoint.y] = translated;
+                    initialPoint.x = translated[0];
+                    initialPoint.y = translated[1];
                 } else {
                     this.drawInstance.fire('drawstop');
                 }

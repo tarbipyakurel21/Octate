@@ -1,11 +1,7 @@
-"""Local backends registered with CVAT.
-
-Detection, click segmentation, and tracking run inside this service with
-OpenCV. They stay on the machine and do not download weights.
-"""
+"""Local learned backends registered with CVAT."""
 
 BACKENDS = {
-    "detect": "OpenCV instrument detector",
-    "segment": "OpenCV magic wand",
-    "track": "OpenCV template tracker",
+    "detect": "YOLO-World surgical label detector",
+    "segment": "SAM 2.1 Tiny prompt segmenter",
+    "track": "SAM 2.1 Tiny mask propagator",
 }

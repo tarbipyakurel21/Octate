@@ -15,8 +15,8 @@ segmentation, and tracking.
 2. Open the job in Octate.
 3. Draw or correct rectangles, polygons, polylines, points, and ellipses.
    Run the detector on a frame to pre-fill rectangles.
-4. Tick **Track** to draw a track. Editing it on another frame adds a keyframe,
-   and the timeline marks keyframes.
+4. Select a rectangle or polygon and use **AI assistance → Tracking**. SAM 2.1
+   Tiny segments the selection and propagates its accepted label forward.
 5. Save, then export annotations from the task page.
 
 ## Start
@@ -33,7 +33,7 @@ Open [http://localhost:8080](http://localhost:8080).
 On the first run, create an administrator:
 
 ```bash
-docker compose exec cvat_server python manage.py createsuperuser
+./create_superuser.sh
 ```
 
 The model gateway health endpoint is available only on the local machine at
@@ -65,14 +65,15 @@ Planned work on model uncertainty and review prioritization is in
 
 ## Local models
 
-The model gateway runs on this machine and does not call an external API.
-In the job editor, **Detect** runs the **Octate instrument detector** on the
-current frame through CVAT's `/api/lambda/functions` endpoint. The detector
-supplies the task labels, so detections map onto them by name. Labels are
-estimated from the tool's shape. The tissue segmenter and instrument tracker
-are registered with CVAT but are not wired into the Next.js editor yet.
+The model gateway runs on this machine and does not call an inference API.
+YOLO-World detects objects and suggests labels from the task's surgical label
+vocabulary. SAM 2.1 Tiny turns a click or selected box into a polygon and uses
+that mask as the prompt for subsequent frames, retaining the accepted label.
+The weights download into the `octate_models` Docker volume on first use and
+are reused locally afterward.
 
-Set `OCTATE_MODEL_MODE=demo` to return fixed shapes instead of reading the frame.
+Set `OCTATE_MODEL_MODE=demo` to return fixed shapes instead of reading the frame,
+or `OCTATE_MODEL_MODE=opencv` for the lightweight legacy fallback.
 Every model result needs human review.
 
 ## Attribution

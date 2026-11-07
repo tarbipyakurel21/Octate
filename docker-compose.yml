@@ -170,6 +170,11 @@ services:
     environment:
       PORT: 8090
       OCTATE_MODEL_MODE: "${OCTATE_MODEL_MODE:-local}"
+      OCTATE_DETECTOR_MODEL: /models/yolov8s-worldv2.pt
+      OCTATE_SAM_MODEL: /models/sam2.1_t.pt
+    volumes:
+      - ./model-server:/app
+      - octate_models:/models
     expose:
       - "8090"
     ports:
@@ -192,6 +197,7 @@ volumes:
   cvat_logs:
   cvat_inmem_db:
   cvat_cache_db:
+  octate_models:
 
 networks:
   cvat:

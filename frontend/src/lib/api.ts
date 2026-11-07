@@ -56,19 +56,38 @@ export type TaskDraft = {
 
 type ModelCatalog = Record<string, { metadata?: { annotations?: { type?: string; spec?: string } } }>;
 
+export type CvatModel = {
+    id: string;
+    name: string;
+    kind: "detector" | "interactor" | "tracker" | string;
+    description?: string;
+    min_pos_points?: number;
+    min_neg_points?: number;
+    supported_shape_types?: string[];
+};
+
+const FALLBACK_SURGICAL_LABELS = [
+    "Grasper", "Scissors", "Hook cautery", "Clip applier",
+    "Suction", "Needle driver", "Trocar", "Specimen bag",
+];
+
 async function detectorLabels(): Promise<{ name: string; type: "any"; attributes: [] }[]> {
-    const catalog = await request<ModelCatalog>("/model-api/api/functions");
-    const names: string[] = [];
-    for (const item of Object.values(catalog)) {
-        const annotations = item.metadata?.annotations;
-        if (annotations?.type !== "detector") continue;
-        const spec = JSON.parse(annotations.spec || "[]") as { name?: string }[];
-        for (const label of spec) {
-            if (label.name && !names.includes(label.name)) names.push(label.name);
+    try {
+        const catalog = await request<ModelCatalog>("/model-api/api/functions");
+        const names: string[] = [];
+        for (const item of Object.values(catalog)) {
+            const annotations = item.metadata?.annotations;
+            if (annotations?.type !== "detector") continue;
+            const spec = JSON.parse(annotations.spec || "[]") as { name?: string }[];
+            for (const label of spec) {
+                if (label.name && !names.includes(label.name)) names.push(label.name);
+            }
         }
+        if (names.length) return names.map((name) => ({ name, type: "any", attributes: [] }));
+    } catch {
+        // Model gateway not available yet — use the built-in surgical vocabulary.
     }
-    if (!names.length) throw new Error("The model did not provide any labels");
-    return names.map((name) => ({ name, type: "any", attributes: [] }));
+    return FALLBACK_SURGICAL_LABELS.map((name) => ({ name, type: "any", attributes: [] }));
 }
 
 async function collection<T>(url: string): Promise<T[]> {
@@ -184,6 +203,25 @@ export const api = {
     },
     previewUrl: (id: string) => `/api/tasks/${id}/preview`,
     job: async (id: string) => normalizeJob(await request<CvatJob>(`/api/jobs/${id}`)),
+    updateJobState: (id: string, state: string) => request<CvatJob>(`/api/jobs/${id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ state }),
+    }),
+    addLabel: async (taskId: string, jobId: string, name: string, color?: string) => {
+        const currentTask = await request<CvatTask>(`/api/tasks/${taskId}`);
+        const existing = (currentTask.labels || []).map((l) => ({ id: l.id, name: l.name, color: l.color }));
+        const colors = ["#1890ff", "#52c41a", "#faad14", "#ff4d4f", "#722ed1", "#13c2c2", "#eb2f96", "#fa8c16", "#13a8a8"];
+        const newColor = color || colors[existing.length % colors.length];
+        await request<CvatTask>(`/api/tasks/${taskId}`, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({
+                labels: [...existing, { name: name.trim(), color: newColor, type: "any" }],
+            }),
+        });
+        return collection<CvatLabel>(`/api/labels?job_id=${encodeURIComponent(jobId)}&page_size=500`);
+    },
     jobLabels: (jobId: string) => collection<CvatLabel>(`/api/labels?job_id=${encodeURIComponent(jobId)}&page_size=500`),
     jobFrameUrl: (jobId: string, frame: number) =>
         `/api/jobs/${jobId}/data?type=frame&quality=compressed&number=${frame}`,
@@ -194,16 +232,47 @@ export const api = {
             headers,
             body: JSON.stringify(body),
         }),
-    detectors: async () => {
-        const functions = await request<{ id: string; name: string; kind: string }[]>("/api/lambda/functions");
-        return functions.filter((item) => item.kind === "detector");
+    models: () => request<CvatModel[]>("/model-api/api/models"),
+    detect: async (functionId: string, body: { task: number; job: number; frame: number; threshold?: number }) => {
+        // CVAT proxies to the model gateway; the gateway returns {"shapes": [...]} for the detector.
+        const result = await request<DetectedShape[] | { shapes?: DetectedShape[] }>(
+            `/api/lambda/functions/${encodeURIComponent(functionId)}`,
+            { method: "POST", headers, body: JSON.stringify({ cleanup: false, quality: "original", conv_mask_to_poly: true, ...body }) },
+        );
+        // Normalise: some CVAT versions return the array directly, some wrap it.
+        return Array.isArray(result) ? result : (result.shapes ?? []);
     },
-    detect: (functionId: string, body: { task: number; job: number; frame: number; threshold?: number }) =>
-        request<DetectedShape[]>(`/api/lambda/functions/${encodeURIComponent(functionId)}`, {
+    interact: (functionId: string, body: {
+        task: number;
+        job: number;
+        frame: number;
+        pos_points: number[][];
+        neg_points: number[][];
+        obj_bbox?: number[] | number[][];
+    }) => {
+        const payload: Record<string, unknown> = { ...body };
+        if (body.obj_bbox) {
+            const bbox = body.obj_bbox;
+            if (Array.isArray(bbox) && bbox.length === 4 && typeof bbox[0] === "number") {
+                payload.obj_bbox = [[bbox[0], bbox[1]], [bbox[2], bbox[3]]];
+            }
+        }
+        return request<{ shapes: DetectedShape[] }>(`/api/lambda/functions/${encodeURIComponent(functionId)}`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ cleanup: false, quality: "original", conv_mask_to_poly: true, ...body }),
-        }),
+            body: JSON.stringify(payload),
+        });
+    },
+    track: (functionId: string, body: {
+        task: number;
+        job: number;
+        frame: number;
+        shapes?: { type: string; points: number[] }[];
+        states?: Record<string, unknown>[];
+    }) => request<{ shapes: ({ type: string; points: number[] } | null)[]; states: Record<string, unknown>[] }>(
+        `/api/lambda/functions/${encodeURIComponent(functionId)}`,
+        { method: "POST", headers, body: JSON.stringify(body) },
+    ),
 };
 
 export type DetectedShape = {
@@ -270,6 +339,8 @@ function normalizeJob(job: CvatJob): TaskJob {
         id: String(job.id),
         task_id: String(job.task_id),
         status: job.stage || job.state || job.status || "annotation",
+        state: job.state || "new",
+        stage: job.stage || "annotation",
         start_frame: job.start_frame ?? 0,
         stop_frame: job.stop_frame ?? 0,
         type: job.type || "annotation",
