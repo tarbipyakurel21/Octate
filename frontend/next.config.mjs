@@ -3,7 +3,10 @@ import { fileURLToPath } from "url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-const nextConfig = {
+const makeConfig = (phase) => ({
+    // Development and production previously shared .next. Running `next build`
+    // while `next dev` was open replaced its manifests and caused intermittent 500s.
+    distDir: phase === "phase-development-server" ? ".next-dev" : ".next-build",
     webpack: (config) => {
         config.resolve.modules = [path.resolve(root, "node_modules"), ...(config.resolve.modules || ["node_modules"])];
         config.resolve.alias["cvat-canvas-editor"] = path.resolve(
@@ -34,7 +37,7 @@ const nextConfig = {
             },
         ];
     },
-};
+});
 
-export default nextConfig;
+export default makeConfig;
 

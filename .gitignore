@@ -93,6 +93,8 @@ node_modules/
 .venv/
 __pycache__/
 .next/
+.next-dev/
+.next-build/
 dist/
 build/
 *.log

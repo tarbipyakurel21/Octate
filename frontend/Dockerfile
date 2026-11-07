@@ -1,11 +1,12 @@
 FROM node:22-alpine
-WORKDIR /app
-COPY package.json package-lock.json ./
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
-COPY tsconfig.json next.config.mjs next-env.d.ts ./
-COPY app ./app
-COPY src ./src
-COPY public ./public
+COPY frontend/tsconfig.json frontend/next.config.mjs frontend/next-env.d.ts ./
+COPY frontend/app ./app
+COPY frontend/src ./src
+COPY frontend/public ./public
+COPY vendor /app/vendor
 RUN npm run build
 ENV API_SERVER_URL=http://app-server:8080
 EXPOSE 3000
