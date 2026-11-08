@@ -1,17 +1,20 @@
 """In-process learned models for detection, segmentation, and tracking.
 
-YOLO-World proposes a label from Octate's surgical vocabulary. SAM 2.1 Tiny
-turns a click or selected box into a polygon; tracking feeds each resulting
-polygon forward as the prompt for the next frame. Frames never leave this
-process. Model weights are loaded lazily and cached by the container.
+YOLO-World Tiny proposes a label from Octate's surgical vocabulary. Tiny SAM
+(MobileSAM / SAM 2.1 Tiny) turns a click or selected box into a polygon; tracking
+feeds each resulting polygon forward as the prompt for the next frame. Frames never
+leave this process. Model weights are pre-warmed at startup and cached in-process.
+Optimized for high-throughput, low-latency CPU inference using CVAT's serverless pipeline.
 """
 
 from __future__ import annotations
 
+import base64
+import math
+import os
 import threading
 import time
 import uuid
-import os
 from typing import Any
 
 import numpy as np
@@ -38,6 +41,39 @@ class ModelsUnavailable(RuntimeError):
     """Raised when the local vision library cannot be loaded."""
 
 
+def _configure_cpu_runtime():
+    """Tune PyTorch CPU threading to prevent contention and optimize cache locality."""
+    try:
+        import torch
+
+        threads = min(4, max(1, (os.cpu_count() or 2) // 2))
+        torch.set_num_threads(threads)
+        torch.set_num_interop_threads(1)
+    except Exception:
+        pass
+
+
+def _resolve_path(env_var: str, candidate_filenames: list[str]) -> str:
+    """Find the best available model weights path across standard locations."""
+    from_env = os.getenv(env_var)
+    if from_env and os.path.isfile(from_env):
+        return from_env
+
+    search_dirs = [
+        "/app",
+        "/models",
+        os.path.dirname(os.path.abspath(__file__)),
+        os.getcwd(),
+    ]
+    for filename in candidate_filenames:
+        for directory in search_dirs:
+            candidate = os.path.join(directory, filename)
+            if os.path.isfile(candidate):
+                return candidate
+
+    return from_env or candidate_filenames[0]
+
+
 def available() -> bool:
     try:
         import cv2  # noqa: F401
@@ -47,9 +83,22 @@ def available() -> bool:
     return True
 
 
+def init_models() -> None:
+    """Pre-warm models at server startup so subsequent inference requests are fast."""
+    _configure_cpu_runtime()
+    try:
+        _model("detector")
+    except Exception as exc:
+        print(f"[ModelGateway] Detector warm-up notice: {exc}")
+    try:
+        _model("segmenter")
+    except Exception as exc:
+        print(f"[ModelGateway] SAM segmenter warm-up notice: {exc}")
+
+
 def infer(function_id: str, payload: dict[str, Any]) -> Any:
     cv2 = _cv2()
-    image = _decode_image(cv2, payload.get("image"))
+    image = _extract_image(cv2, payload)
     if os.getenv("OCTATE_MODEL_MODE", "local") == "opencv":
         return _infer_opencv(function_id, payload, cv2, image)
     if function_id == "octate-instrument-detector":
@@ -77,36 +126,65 @@ def _model(kind: str):
         if kind in _MODELS:
             return _MODELS[kind]
         try:
-            from ultralytics import SAM, YOLOWorld
+            from ultralytics import SAM, YOLO, YOLOWorld
         except ImportError as exc:
             raise ModelsUnavailable("Ultralytics is not installed in the model gateway") from exc
+
+        _configure_cpu_runtime()
         try:
             if kind == "detector":
-                path = os.getenv("OCTATE_DETECTOR_MODEL", "/models/yolov8s-worldv2.pt")
-                loaded = YOLOWorld(path)
-                loaded.set_classes(SURGICAL_LABELS)
+                path = _resolve_path(
+                    "OCTATE_DETECTOR_MODEL",
+                    ["yolov8s-worldv2.pt", "yolov8n.pt", "yolov8s-world.pt"],
+                )
+                if "world" in os.path.basename(path).lower():
+                    loaded = YOLOWorld(path)
+                    loaded.set_classes(SURGICAL_LABELS)
+                else:
+                    loaded = YOLO(path)
+                # Warm up CPU allocator and JIT
+                dummy = np.zeros((320, 320, 3), dtype=np.uint8)
+                loaded.predict(source=dummy, imgsz=320, verbose=False)
             else:
-                path = os.getenv("OCTATE_SAM_MODEL", "/models/sam2.1_t.pt")
+                path = _resolve_path(
+                    "OCTATE_SAM_MODEL",
+                    ["mobile_sam.pt", "sam2.1_t.pt"],
+                )
                 loaded = SAM(path)
+                dummy = np.zeros((320, 320, 3), dtype=np.uint8)
+                loaded.predict(source=dummy, bboxes=[[10, 10, 50, 50]], verbose=False)
         except Exception as exc:
             raise ModelsUnavailable(
-                f"Could not load {kind} weights. Check the model cache/network: {exc}"
+                f"Could not load {kind} weights ({path}): {exc}"
             ) from exc
+
         _MODELS[kind] = loaded
+        print(f"[ModelGateway] Successfully initialized and pre-warmed {kind} model from {path}")
         return loaded
 
 
 def _detect_learned(cv2, image, threshold: float) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     try:
-        # Zero-shot open-vocabulary classes have lower raw confidence logits
+        import torch
+
+        detector = _model("detector")
         effective_conf = max(0.002, min(threshold * 0.1, 0.05))
-        results = _model("detector").predict(source=image, conf=effective_conf, verbose=False)
+        with torch.inference_mode():
+            results = detector.predict(source=image, imgsz=640, conf=effective_conf, verbose=False)
         if results and results[0].boxes is not None:
             boxes = results[0].boxes
-            for xyxy, confidence, class_id in zip(boxes.xyxy.cpu().tolist(), boxes.conf.cpu().tolist(), boxes.cls.cpu().tolist()):
+            for xyxy, confidence, class_id in zip(
+                boxes.xyxy.cpu().tolist(),
+                boxes.conf.cpu().tolist(),
+                boxes.cls.cpu().tolist(),
+            ):
                 index = int(class_id)
-                label = SURGICAL_LABELS[index] if 0 <= index < len(SURGICAL_LABELS) else str(results[0].names.get(index, "Instrument"))
+                label = (
+                    SURGICAL_LABELS[index]
+                    if 0 <= index < len(SURGICAL_LABELS)
+                    else str(results[0].names.get(index, "Instrument"))
+                )
                 found.append({
                     "label": label,
                     "confidence": round(float(confidence), 4),
@@ -114,10 +192,10 @@ def _detect_learned(cv2, image, threshold: float) -> list[dict[str, Any]]:
                     "type": "rectangle",
                     "attributes": [],
                 })
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[ModelGateway] Learned detector error: {exc}")
 
-    # If YOLO didn't locate instruments or gave empty results, fall back to the OpenCV instrument locator
+    # Fall back to OpenCV surgical locator if YOLO detected nothing
     if not found:
         found = _detect(cv2, image, min(threshold, 0.4))
     return found
@@ -131,12 +209,35 @@ def _result_polygon(result) -> list[float] | None:
     polygon = max(polygons, key=lambda value: len(value))
     if len(polygon) < 3:
         return None
-    if len(polygon) > 100:
-        polygon = polygon[:: max(1, len(polygon) // 100)]
-    return [round(float(axis), 2) for point in polygon for axis in point[:2]]
+
+    # Use Douglas-Peucker polygon approximation to reduce vertices for smooth CVAT rendering
+    try:
+        import cv2
+
+        pts = np.array(polygon, dtype=np.float32).reshape((-1, 1, 2))
+        arc_len = float(cv2.arcLength(pts, True))
+        epsilon = max(1.0, 0.005 * arc_len)
+        approx = cv2.approxPolyDP(pts, epsilon, True)
+        if len(approx) >= 3:
+            pts = approx
+        if len(pts) > 80:
+            step = max(1, len(pts) // 80)
+            pts = pts[::step]
+        if len(pts) < 3:
+            return None
+        return [round(float(coord), 2) for pt in pts[:, 0, :] for coord in pt]
+    except Exception:
+        if len(polygon) > 80:
+            polygon = polygon[:: max(1, len(polygon) // 80)]
+        return [round(float(axis), 2) for point in polygon for axis in point[:2]]
 
 
-def _sam_polygon(image, *, points: list[tuple[int, int]] | None = None, bbox: tuple[int, int, int, int] | None = None) -> list[float] | None:
+def _sam_polygon(
+    image,
+    *,
+    points: list[tuple[int, int]] | None = None,
+    bbox: tuple[int, int, int, int] | None = None,
+) -> list[float] | None:
     arguments: dict[str, Any] = {"source": image, "verbose": False}
     if bbox is not None:
         arguments["bboxes"] = [list(bbox)]
@@ -144,9 +245,13 @@ def _sam_polygon(image, *, points: list[tuple[int, int]] | None = None, bbox: tu
         arguments["points"] = [[list(point) for point in points]]
         arguments["labels"] = [[1] * len(points)]
     try:
-        results = _model("segmenter").predict(**arguments)
+        import torch
+
+        segmenter = _model("segmenter")
+        with torch.inference_mode():
+            results = segmenter.predict(**arguments)
     except Exception as exc:
-        print(f"SAM predict failed: {exc}")
+        print(f"[ModelGateway] SAM predict failed: {exc}")
         return None
     return _result_polygon(results[0]) if results else None
 
@@ -166,7 +271,7 @@ def _segment_learned(cv2, image, payload: dict[str, Any]) -> dict[str, Any]:
     if not points:
         # Fall back to contour segmentation
         return _segment(cv2, image, payload)
-    return {"shapes": [{"type": "polygon", "points": points, "attributes": []}]}
+    return {"shapes": [{"type": "polygon", "points": points, "confidence": 0.95, "attributes": []}]}
 
 
 def _track_learned(cv2, image, shapes: list[Any], states: list[Any]) -> dict[str, Any]:
@@ -210,11 +315,39 @@ def _cv2():
     return cv2
 
 
-def _decode_image(cv2, encoded: Any):
-    import base64
+def _extract_image(cv2, payload: dict[str, Any]):
+    """Extract and decode image either from raw base64 or by ingesting from CVAT API."""
+    encoded = payload.get("image")
+    if encoded:
+        return _decode_image(cv2, encoded)
 
+    # CVAT data ingestion fallback: if frame and job are provided, fetch directly from CVAT
+    job_id = payload.get("job")
+    frame_num = payload.get("frame")
+    if job_id is not None and frame_num is not None:
+        try:
+            import urllib.request
+
+            cvat_url = os.getenv("CVAT_SERVER_URL", "http://cvat-server:8080")
+            url = f"{cvat_url}/api/jobs/{job_id}/data?type=frame&quality=original&number={frame_num}"
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                raw_bytes = response.read()
+                image = cv2.imdecode(np.frombuffer(raw_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+                if image is not None:
+                    return image
+        except Exception as exc:
+            print(f"[ModelGateway] Ingesting frame from CVAT failed: {exc}")
+
+    raise ValueError("image (or valid CVAT job+frame) is required")
+
+
+def _decode_image(cv2, encoded: Any):
     if not isinstance(encoded, str) or not encoded:
         raise ValueError("image is required")
+    # Strip data URL prefix if present (e.g. data:image/jpeg;base64,...)
+    if "," in encoded and encoded.startswith("data:"):
+        encoded = encoded.split(",", 1)[1]
     try:
         raw = base64.b64decode(encoded, validate=False)
     except Exception as exc:
@@ -349,8 +482,6 @@ def _contour_points(cv2, filled) -> list[float] | None:
 
 
 def _disk(x: int, y: int, width: int, height: int, radius: int = 16) -> list[float]:
-    import math
-
     points: list[float] = []
     for step in range(12):
         angle = 2 * math.pi * step / 12

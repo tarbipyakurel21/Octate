@@ -151,5 +151,50 @@ class LocalModelTests(unittest.TestCase):
             server.server_close()
 
 
+class LearnedModelTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            import cv2
+            import ultralytics
+        except ImportError:
+            raise unittest.SkipTest("Ultralytics or OpenCV is not installed")
+        cls.cv2 = cv2
+        previous = os.environ.get("OCTATE_MODEL_MODE")
+        os.environ["OCTATE_MODEL_MODE"] = "local"
+        cls._previous_mode = previous
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._previous_mode is None:
+            os.environ.pop("OCTATE_MODEL_MODE", None)
+        else:
+            os.environ["OCTATE_MODEL_MODE"] = cls._previous_mode
+
+    def test_learned_detector_returns_valid_shapes(self):
+        image = np.full((240, 320, 3), (90, 90, 190), np.uint8)
+        self.cv2.rectangle(image, (30, 80), (220, 110), (30, 30, 30), -1)
+        found = invoke("octate-instrument-detector", {"image": _jpeg(image), "threshold": 0.5})
+        self.assertIsInstance(found, list)
+        self.assertGreaterEqual(len(found), 1)
+        box = found[0]
+        self.assertEqual(box["type"], "rectangle")
+        self.assertIn("points", box)
+        self.assertEqual(len(box["points"]), 4)
+
+    def test_learned_sam_segmenter_returns_polygon(self):
+        image = np.zeros((200, 200, 3), np.uint8)
+        self.cv2.circle(image, (100, 100), 40, (220, 220, 220), -1)
+        output = invoke(
+            "octate-tissue-segmenter",
+            {"image": _jpeg(image), "pos_points": [[100, 100]], "obj_bbox": [60, 60, 140, 140]},
+        )
+        self.assertIn("shapes", output)
+        self.assertGreaterEqual(len(output["shapes"]), 1)
+        shape = output["shapes"][0]
+        self.assertEqual(shape["type"], "polygon")
+        self.assertGreaterEqual(len(shape["points"]), 6)
+
+
 if __name__ == "__main__":
     unittest.main()

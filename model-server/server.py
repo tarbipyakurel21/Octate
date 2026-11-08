@@ -1,14 +1,16 @@
 """Octate's CVAT-facing model gateway.
 
 CVAT discovers functions through the Nuclio dashboard API and invokes them
-with a base64 frame. Local mode runs YOLO-World and SAM 2.1 Tiny in-process.
-Demo mode is deterministic and is used when a frame is not supplied.
+with a base64 frame. Local mode runs YOLO-World Tiny and Tiny SAM (MobileSAM)
+in-process with high-speed CPU inference. Demo mode is deterministic and is
+used when a frame is not supplied.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
@@ -17,9 +19,9 @@ import local_models
 
 FUNCTIONS = {
     "octate-instrument-detector": {
-        "name": "YOLO-World surgical detector",
+        "name": "YOLO-World Tiny surgical detector",
         "kind": "detector",
-        "description": "Finds instruments and suggests a label from the surgical vocabulary. Every suggestion needs review.",
+        "description": "Finds surgical instruments and proposes labels using YOLO-World Tiny (yolov8s-worldv2).",
         "labels": [
             {"name": "Grasper", "type": "rectangle"},
             {"name": "Scissors", "type": "rectangle"},
@@ -32,18 +34,18 @@ FUNCTIONS = {
         ],
     },
     "octate-tissue-segmenter": {
-        "name": "SAM 2.1 Tiny segmenter",
+        "name": "Tiny SAM segmenter",
         "kind": "interactor",
-        "description": "Selects a tissue or instrument region from a click.",
+        "description": "Prompts Tiny SAM (MobileSAM) with a selector square or click point to segment tissue or instruments into a polygon mask.",
         "min_pos_points": 1,
         "min_neg_points": 0,
-        "help_message": "Left-click the region to keep. Right-click a region to exclude.",
+        "help_message": "Drag a selector square over an object or click to segment with Tiny SAM.",
         "labels": [],
     },
     "octate-instrument-tracker": {
-        "name": "SAM 2.1 Tiny tracker",
+        "name": "Tiny SAM tracker",
         "kind": "tracker",
-        "description": "Segments a selected object and propagates its mask onto following frames.",
+        "description": "Tracks and propagates segmented polygon masks across frames using Tiny SAM.",
         "supported_shape_types": ["rectangle", "polygon"],
         "labels": [],
     },
@@ -127,11 +129,18 @@ def invoke(function_id: str, payload: dict[str, Any]) -> Any:
     """Run a local model when CVAT sends a frame. Otherwise return the demo shape."""
     if function_id not in FUNCTIONS:
         raise KeyError(function_id)
-    if mode() != "demo" and payload.get("image"):
+    has_image = bool(
+        payload.get("image")
+        or (payload.get("job") is not None and payload.get("frame") is not None)
+    )
+    if mode() != "demo" and has_image:
         try:
             return local_models.infer(function_id, payload)
         except Exception as exc:
-            print(f"Inference error on {function_id}: {exc}")
+            print(f"[ModelGateway] Inference error on {function_id}: {exc}")
+            import traceback
+
+            traceback.print_exc()
             return _demo(function_id, payload)
     return _demo(function_id, payload)
 
@@ -153,7 +162,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({
                 "status": "ok",
                 "mode": mode(),
-                "backend": "yolo-world+sam2.1-tiny" if local_models.available() else "unavailable",
+                "backend": "yolo-world-tiny+mobile-sam" if local_models.available() else "unavailable",
             })
         elif path == "/api/functions":
             self._json(nuclio_catalog())
@@ -202,4 +211,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", int(os.getenv("PORT", "8090"))), Handler).serve_forever()
+    threading.Thread(target=local_models.init_models, daemon=True).start()
+    port = int(os.getenv("PORT", "8090"))
+    print(f"[ModelGateway] Starting Octate Model Gateway on port {port} (mode={mode()})...")
+    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
