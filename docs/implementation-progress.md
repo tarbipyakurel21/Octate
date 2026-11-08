@@ -1,5 +1,15 @@
 # Implementation progress
 
+## 2026-11-08 — Upload diagnosis instrumentation
+
+- Rebuilt and force-recreated only the existing `frontend` Docker service. The production build completed successfully, and the running container now contains the diagnostic bundle strings (`[Octate upload]` and the stable-file message).
+- Added temporary, bounded diagnostics at the frontend upload boundary in `frontend/src/lib/api.ts`. Each upload logs sanitized file name, size, last-modified timestamp, phase, and elapsed milliseconds. Start/finish fetches and the multipart XHR distinguish an HTTP response from a client-side rejection; file contents, cookies, and response bodies are not logged.
+- Added actionable stale-file handling: an unreadable `File` or multipart XHR rejection now says to reselect a stable local copy. Failed tasks still use the existing best-effort DELETE cleanup.
+- Focused verification passed: `npm run typecheck` and `git diff --check`.
+- Runtime diagnosis is not complete: the current session cannot access the Docker socket (`operation not permitted`), the browser access host is unavailable, and no local Nginx logs are present in the repository. Therefore exact failed-request timestamps, Content-Length/multipart boundary/request-body comparison, proxy forwarding, and repeated real-browser MP4 uploads remain unverified. No upload fix is claimed.
+- After approved Docker-log access, the exact task 47–49 failures were correlated at `2026-11-08 06:07:36.996Z`, `06:07:38.342Z`, and `06:07:39.705Z` in the CVAT container access log. Each had `POST /api/tasks/{id}/data` → `400 0` from the container’s Nginx; there was no corresponding Uvicorn application request line, while task creation and Upload-Start did reach Uvicorn. This localizes those failures to the Nginx/proxy request-body boundary, not CVAT task processing. The running Nginx config reports `client_max_body_size 1G`; Content-Length, boundary bytes, and the Next.js forwarding behavior still require a browser Network capture or an equivalent reproducible request.
+- Nginx’s error stream at the same timestamps contained no `invalid request body`, `prematurely closed`, `malformed boundary`, upstream, or other explanatory error—only the access-log `400 0` entries. Thus the exact Nginx rejection reason is not established.
+
 ## 2026-11-07 — Video upload pipeline
 
 - Root cause: the frontend sent a raw multipart `POST /api/tasks/{id}/data`, but the active Docker Compose deployment routes `/api` to `cvat_server`, whose upload endpoint requires the existing CVAT upload-session protocol.
@@ -38,3 +48,11 @@
 - Left CVAT project backend models, database tables, and API endpoints unchanged.
 - Updated dashboard copy to describe tasks and jobs without changing upload, deletion, annotation, or SAM2 behavior.
 - Verification: frontend `npm run typecheck` passed and source navigation checks found no `/projects` references. `npm run build` could not start compilation because the checked-in local `node_modules` has an incompatible Next/Commander dependency state (`Class extends value undefined`). Backend project code was not modified.
+
+## 2026-11-07 — Production frontend rebuild
+
+- Removed the four unreachable frontend Projects route/component files left behind after Projects was removed; this fixes the production build error from the deleted `Project` type without touching CVAT project APIs.
+- Rebuilt and force-recreated the existing `frontend` Docker service successfully.
+- `npm run typecheck` passed; `git diff --check` passed.
+- The checked-in Vitest installation still cannot start because its Vite dependency files are incompatible (`does not provide an export named 'a'`).
+- Host-level verification of `http://localhost:8080/tasks`, deletion persistence, and a real MP4 upload was blocked by this session's Docker socket/localhost sandbox permissions. No additional end-to-end runtime success is claimed here.

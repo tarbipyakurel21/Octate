@@ -628,6 +628,12 @@
 .tk-form .tk-note{display:block;margin:-4px 0 16px}
 .tk-drop{min-height:148px;border:1px dashed #c9d3e2;border-radius:12px;background:#fbfcfe;color:#667085;padding:18px}
 .tk-drop:hover,.tk-drop.has-file{border-color:#2878d6;background:#f5f9ff}
+/* TEMPORARY FILE-READ DIAGNOSTIC: remove this block with the diagnostic panel. */
+.tk-file-read-diagnostic{margin:-8px 0 8px;padding:12px;border:1px solid #d8b44a;border-radius:8px;background:#fff9df;color:#4b3a00;font-size:13px;line-height:1.55}
+.tk-file-read-diagnostic strong{display:block;margin-bottom:4px}
+.tk-file-read-diagnostic small{display:block;margin-top:6px;color:#6f6133}
+.tk-file-read-success{color:#176b42;font-weight:600}
+.tk-file-read-failure{color:#a12b22;font-weight:600;overflow-wrap:anywhere}
 .tk-drop strong{color:#17131a;font-weight:600}
 .tk-drop svg{width:22px;height:22px;color:#2878d6}
 .tk-disclosure{display:flex;align-items:center;gap:6px;width:100%;margin:4px 0;padding:8px 0;border:0;background:transparent;color:#1d5eae;font:600 14px "Roboto Flex","Segoe UI",sans-serif;cursor:pointer;text-align:left}

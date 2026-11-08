@@ -136,6 +136,16 @@ export const api = {
         }
     },
     async uploadTask(draft: TaskDraft, onProgress: (loaded: number, total: number) => void) {
+        // Chrome reports ERR_UPLOAD_FILE_CHANGED when the browser can no longer
+        // read the selected local file. Check readability before creating a
+        // server task so this case gets an actionable message instead of a
+        // misleading generic network error.
+        try {
+            await draft.file.slice(0, Math.min(draft.file.size, 1)).arrayBuffer();
+        } catch {
+            throw new Error("The selected video could not be read. Reselect a stable local copy and try again.");
+        }
+
         const created = await request<CvatTask>("/api/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -147,11 +157,15 @@ export const api = {
         });
 
         try {
-            await request(`/api/tasks/${created.id}/data`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Upload-Start": "true" },
-                body: "{}",
-            });
+            try {
+                await request(`/api/tasks/${created.id}/data`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Upload-Start": "true" },
+                    body: "{}",
+                });
+            } catch (reason) {
+                throw reason;
+            }
 
             await new Promise<void>((resolve, reject) => {
                 const body = new FormData();
@@ -173,23 +187,28 @@ export const api = {
                     }
                 };
                 xhr.onerror = () => {
-                    reject(new Error(xhr.responseText ? errorText(xhr.responseText) : "Upload failed"));
+                    reject(new Error("The video upload could not be read or sent. Reselect a stable local copy and try again."));
                 };
                 xhr.send(body);
             });
 
-            const upload = await request<{ rq_id: string }>(`/api/tasks/${created.id}/data`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Upload-Finish": "true" },
-                body: JSON.stringify({
-                    image_quality: draft.imageQuality,
-                    use_cache: true,
-                    use_zip_chunks: false,
-                    sorting_method: "lexicographical",
-                    server_files: [],
-                    remote_files: [],
-                }),
-            });
+            let upload: { rq_id: string };
+            try {
+                upload = await request<{ rq_id: string }>(`/api/tasks/${created.id}/data`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Upload-Finish": "true" },
+                    body: JSON.stringify({
+                        image_quality: draft.imageQuality,
+                        use_cache: true,
+                        use_zip_chunks: false,
+                        sorting_method: "lexicographical",
+                        server_files: [],
+                        remote_files: [],
+                    }),
+                });
+            } catch (reason) {
+                throw reason;
+            }
 
             for (;;) {
                 const processing = await request<CvatRequest>(`/api/requests/${upload.rq_id}`);
