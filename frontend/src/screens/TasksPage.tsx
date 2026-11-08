@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ImageOff, Plus, Search } from "lucide-react";
+import { ImageOff, LoaderCircle, Plus, Search, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import type { Task } from "../types";
 
@@ -21,6 +21,16 @@ function created(task: Task): string {
     return `Created by ${task.owner.username} on ${formatted}`;
 }
 
+export async function confirmTaskDeletion(
+    confirmed: boolean,
+    taskId: string,
+    deleteTask: (id: string) => Promise<unknown>,
+): Promise<boolean> {
+    if (!confirmed) return false;
+    await deleteTask(taskId);
+    return true;
+}
+
 export function TasksPage({
     onCreate,
     onOpen,
@@ -34,12 +44,30 @@ export function TasksPage({
     const [error, setError] = useState("");
     const [query, setQuery] = useState("");
     const [status, setStatus] = useState<"all" | Task["status"]>("all");
+    const [deleting, setDeleting] = useState<Task | null>(null);
+    const [deleteError, setDeleteError] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         api.tasks()
             .then(setTasks)
             .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Tasks could not be loaded"));
     }, []);
+
+    const deleteSelectedTask = async () => {
+        if (!deleting || isDeleting) return;
+        setIsDeleting(true);
+        setDeleteError("");
+        try {
+            await confirmTaskDeletion(true, deleting.id, api.deleteTask);
+            setTasks((current) => current.filter((task) => task.id !== deleting.id));
+            setDeleting(null);
+        } catch (reason: unknown) {
+            setDeleteError(reason instanceof Error ? reason.message : "Task could not be deleted");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const visible = useMemo(
         () =>
@@ -110,10 +138,35 @@ export function TasksPage({
                             <button type="button" disabled={!ready} onClick={() => onAnnotate(task)}>
                                 Octate
                             </button>
+                            <button
+                                type="button"
+                                className="tk-delete-action"
+                                aria-label={`Delete ${task.name}`}
+                                title="Delete task"
+                                onClick={() => { setDeleteError(""); setDeleting(task); }}
+                            >
+                                <Trash2 />
+                            </button>
                         </li>
                     );
                 })}
             </ul>
+            {deleting && (
+                <div className="tk-dialog-backdrop" role="presentation">
+                    <section className="tk-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-task-title">
+                        <h2 id="delete-task-title">Delete task?</h2>
+                        <p className="tk-dialog-task"><strong>{deleting.name}</strong> (ID {deleting.id})</p>
+                        <p>This is permanent and removes the task’s jobs, annotations, and task media.</p>
+                        {deleteError && <p className="tk-dialog-error" role="alert">{deleteError}</p>}
+                        <div className="tk-actions">
+                            <button type="button" onClick={() => { setDeleting(null); setDeleteError(""); }} disabled={isDeleting}>Cancel</button>
+                            <button type="button" className="tk-primary" onClick={deleteSelectedTask} disabled={isDeleting}>
+                                {isDeleting && <LoaderCircle className="tk-spinner" />} {isDeleting ? "Deleting…" : "Delete permanently"}
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            )}
         </main>
     );
 }

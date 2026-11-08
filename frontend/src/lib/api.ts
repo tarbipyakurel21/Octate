@@ -1,5 +1,5 @@
 import type { CvatLabel, ServerAnnotations } from "./canvas/jobAnnotations";
-import type { Project, Task, TaskJob } from "../types";
+import type { Task, TaskJob } from "../types";
 
 const headers = { "Content-Type": "application/json" };
 
@@ -112,13 +112,9 @@ export const api = {
     logout() {
         return request<void>("/api/auth/logout", { method: "POST" });
     },
-    tasks: async (projectId?: string) => {
-        const filter = projectId ? `&project_id=${encodeURIComponent(projectId)}` : "";
-        return (await collection<CvatTask>(`/api/tasks?page_size=100${filter}`)).map(normalizeTask);
-    },
+    tasks: async () => (await collection<CvatTask>("/api/tasks?page_size=100")).map(normalizeTask),
     task: async (id: string) => normalizeTask(await request<CvatTask>(`/api/tasks/${id}`)),
-    projects: async () => (await collection<CvatProject>("/api/projects?page_size=100")).map(normalizeProject),
-    project: async (id: string) => normalizeProject(await request<CvatProject>(`/api/projects/${id}`)),
+    deleteTask: (id: string) => request<void>(`/api/tasks/${encodeURIComponent(id)}`, { method: "DELETE" }),
     jobs: async () => (await collection<CvatJob>("/api/jobs?page_size=100")).map(normalizeJob),
     taskJobs: async (taskId: string) =>
         (await collection<CvatJob>(`/api/jobs?task_id=${encodeURIComponent(taskId)}&page_size=100`)).map(normalizeJob),
@@ -150,56 +146,70 @@ export const api = {
             }),
         });
 
-        await request(`/api/tasks/${created.id}/data`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Upload-Start": "true" },
-            body: "{}",
-        });
+        try {
+            await request(`/api/tasks/${created.id}/data`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Upload-Start": "true" },
+                body: "{}",
+            });
 
-        await new Promise<void>((resolve, reject) => {
-            const body = new FormData();
-            body.append("client_files[0]", draft.file, draft.file.name);
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", `/api/tasks/${created.id}/data`);
-            xhr.withCredentials = true;
-            const csrf = cookie("csrftoken");
-            if (csrf) xhr.setRequestHeader("X-CSRFToken", csrf);
-            xhr.setRequestHeader("Upload-Multiple", "true");
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) onProgress(event.loaded, event.total);
-            };
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) resolve();
-                else reject(new Error(errorText(xhr.responseText)));
-            };
-            xhr.onerror = () => reject(new Error("Upload failed"));
-            xhr.send(body);
-        });
+            await new Promise<void>((resolve, reject) => {
+                const body = new FormData();
+                body.append("client_files[0]", draft.file, draft.file.name);
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", `/api/tasks/${created.id}/data`);
+                xhr.withCredentials = true;
+                const csrf = cookie("csrftoken");
+                if (csrf) xhr.setRequestHeader("X-CSRFToken", csrf);
+                xhr.setRequestHeader("Upload-Multiple", "true");
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) onProgress(event.loaded, event.total);
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve();
+                    else {
+                        const message = errorText(xhr.responseText);
+                        reject(new Error(message === "Request failed" ? `Upload request failed (HTTP ${xhr.status})` : message));
+                    }
+                };
+                xhr.onerror = () => {
+                    reject(new Error(xhr.responseText ? errorText(xhr.responseText) : "Upload failed"));
+                };
+                xhr.send(body);
+            });
 
-        const upload = await request<{ rq_id: string }>(`/api/tasks/${created.id}/data`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Upload-Finish": "true" },
-            body: JSON.stringify({
-                image_quality: draft.imageQuality,
-                use_cache: true,
-                use_zip_chunks: false,
-                sorting_method: "lexicographical",
-                server_files: [],
-                remote_files: [],
-            }),
-        });
+            const upload = await request<{ rq_id: string }>(`/api/tasks/${created.id}/data`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Upload-Finish": "true" },
+                body: JSON.stringify({
+                    image_quality: draft.imageQuality,
+                    use_cache: true,
+                    use_zip_chunks: false,
+                    sorting_method: "lexicographical",
+                    server_files: [],
+                    remote_files: [],
+                }),
+            });
 
-        for (;;) {
-            const processing = await request<CvatRequest>(`/api/requests/${upload.rq_id}`);
-            const status = String(processing.status || "").toLowerCase();
-            if (status === "finished") break;
-            if (status === "failed") {
-                throw new Error(publicMessage(processing.message || "The uploaded video could not be processed"));
+            for (;;) {
+                const processing = await request<CvatRequest>(`/api/requests/${upload.rq_id}`);
+                const status = String(processing.status || "").toLowerCase();
+                if (status === "finished") break;
+                if (status === "failed") {
+                    throw new Error(publicMessage(processing.message || "The uploaded video could not be processed"));
+                }
+                await wait(1000);
             }
-            await wait(1000);
-        }
 
-        return normalizeTask(await request<CvatTask>(`/api/tasks/${created.id}`));
+            return normalizeTask(await request<CvatTask>(`/api/tasks/${created.id}`));
+        } catch (reason) {
+            try {
+                await request<void>(`/api/tasks/${encodeURIComponent(created.id)}`, { method: "DELETE" });
+            } catch {
+                // Preserve the upload error; cleanup is best effort.
+            }
+            throw reason;
+        }
     },
     previewUrl: (id: string) => `/api/tasks/${id}/preview`,
     job: async (id: string) => normalizeJob(await request<CvatJob>(`/api/jobs/${id}`)),
@@ -308,31 +318,12 @@ type CvatJob = {
     type?: string;
 };
 
-type CvatProject = {
-    id: number;
-    name: string;
-    owner?: { username: string } | null;
-    created_date?: string;
-    updated_date?: string;
-};
-
 type CvatRequest = {
     status: "queued" | "started" | "finished" | "failed" | string;
     message?: string;
     progress?: number;
     result_url?: string | null;
 };
-
-function normalizeProject(project: CvatProject): Project {
-    const now = new Date().toISOString();
-    return {
-        id: String(project.id),
-        name: project.name,
-        owner: project.owner?.username || "Octate",
-        created_date: project.created_date ?? now,
-        updated_date: project.updated_date ?? now,
-    };
-}
 
 function normalizeJob(job: CvatJob): TaskJob {
     return {

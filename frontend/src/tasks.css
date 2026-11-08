@@ -601,6 +601,12 @@
 .tk-task>button,.tk-create-action,.tk-primary{border:0;background:#d96579;color:#fff}
 .tk-task>button:hover,.tk-create-action:hover,.tk-primary:hover{background:#bd4f66}
 .tk-task>button:disabled,.tk-primary:disabled,.tk-create-action:disabled{background:#eef1f4;color:#98a2b3;opacity:1;cursor:default}
+.tk-delete-action{width:36px;padding:0!important;display:grid;place-items:center;background:#fff!important;color:#98a2b3!important;border:1px solid #e6ebf2!important}
+.tk-delete-action:hover{color:#b42318!important;border-color:#f3c1c1!important;background:#fff6f6!important}
+.tk-delete-action svg{width:16px;height:16px}
+.tk-dialog-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:rgba(23,19,26,.35)}
+.tk-dialog{width:min(460px,100%);padding:24px;background:#fff;border-radius:14px;box-shadow:0 16px 48px rgba(16,24,40,.2)}
+.tk-dialog h2{margin:0 0 12px;font-size:20px}.tk-dialog p{color:#667085;font-size:14px;line-height:1.5}.tk-dialog-task{color:#17131a!important}.tk-dialog-error{padding:10px 12px;border:1px solid #f3c1c1;border-radius:8px;background:#fff6f6;color:#b42318!important}.tk-dialog .tk-actions{margin-bottom:0}.tk-spinner{width:16px;height:16px;animation:tk-spin .8s linear infinite}@keyframes tk-spin{to{transform:rotate(360deg)}}
 .tk-text-action,.tk-actions button{display:inline-flex;align-items:center;gap:6px;border:1px solid #e6ebf2;background:#fff;color:#17131a}
 .tk-text-action:hover,.tk-actions button:hover{border-color:#c9d3e2;background:#f7f9fc}
 .tk-text-action svg{width:16px;height:16px}

@@ -19,6 +19,15 @@ export type CvatEditorHandle = {
 
 type Frame = { number: number; image: ImageBitmap };
 
+export function getCanvasClientID(target: EventTarget | null): number | null {
+    const element = target && typeof (target as Element).closest === "function" ?
+        (target as Element).closest<SVGElement>('[id^="cvat_canvas_shape_"], [clientID]') : null;
+    if (!element) return null;
+    const rawID = element.getAttribute('clientID') || element.id.replace('cvat_canvas_shape_', '');
+    const clientID = Number(rawID);
+    return Number.isFinite(clientID) ? clientID : null;
+}
+
 export const CvatEditor = forwardRef<CvatEditorHandle, {
     frame: Frame | null;
     states: CanvasObjectState[];
@@ -185,14 +194,7 @@ export const CvatEditor = forwardRef<CvatEditorHandle, {
                 const pt = getSVGPoint(event.clientX, event.clientY);
                 if (!pt) return;
 
-                const target = event.target as HTMLElement | SVGElement | null;
-                const shapeNode = target?.closest<SVGElement>('[id^="cvat_canvas_shape_"], [clientID]');
-                let clickedId: number | null = null;
-                if (shapeNode) {
-                    const rawId = shapeNode.getAttribute("clientID") || shapeNode.id.replace("cvat_canvas_shape_", "");
-                    const parsed = Number(rawId);
-                    if (Number.isFinite(parsed)) clickedId = parsed;
-                }
+                const clickedId = getCanvasClientID(event.target);
 
                 // If a shape was clicked directly:
                 if (clickedId !== null) {
@@ -392,6 +394,20 @@ export const CvatEditor = forwardRef<CvatEditorHandle, {
             event.stopPropagation();
         };
 
+        const onContextMenu = (event: MouseEvent) => {
+            if (!['select', 'move'].includes(handlers.current.tool)) return;
+            const clientID = getCanvasClientID(event.target);
+            if (clientID === null) return;
+            const targetState = handlers.current.states.find((state) => state.clientID === clientID);
+            if (!targetState || targetState.hidden || targetState.outside) return;
+
+            canvasRef.current?.activate(clientID);
+            canvasRef.current?.setSelectedObjects([clientID]);
+            handlers.current.onSelectionChange([clientID]);
+            event.preventDefault();
+            event.stopPropagation();
+        };
+
         const stopMenu = (event: Event) => {
             if (handlers.current.tool === "wand") event.preventDefault();
         };
@@ -413,6 +429,7 @@ export const CvatEditor = forwardRef<CvatEditorHandle, {
             node.addEventListener("pointermove", onPointerMove, true);
             node.addEventListener("pointerup", onPointerUp, true);
             node.addEventListener("dblclick", onDoubleClick, true);
+            node.addEventListener("contextmenu", onContextMenu, true);
             node.addEventListener("contextmenu", stopMenu);
             showGrid(node, gridOn.current);
             canvas.configure({ colorBy: "label", displayAllText: true, autoborders: true, resetZoom: false });
@@ -433,6 +450,7 @@ export const CvatEditor = forwardRef<CvatEditorHandle, {
             node.removeEventListener("pointermove", onPointerMove, true);
             node.removeEventListener("pointerup", onPointerUp, true);
             node.removeEventListener("dblclick", onDoubleClick, true);
+            node.removeEventListener("contextmenu", onContextMenu, true);
             node.removeEventListener("contextmenu", stopMenu);
             canvas?.destroy();
             canvasRef.current = null;

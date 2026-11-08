@@ -43,13 +43,6 @@ export function CreateTaskPage({ onCancel, onCreated }: { onCancel: () => void; 
 
     return (
         <main className="tk-page tk-page-narrow">
-            <div className="tk-page-heading">
-                <div>
-                    <span>TASKS</span>
-                    <h1>Create a task</h1>
-                    <p>Name the procedure and upload a video. Frames are extracted after upload.</p>
-                </div>
-            </div>
             <form
                 className="tk-form"
                 onSubmit={(event) => {

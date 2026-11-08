@@ -3,7 +3,7 @@ export function AboutPage() {
         <main className="about-page">
             <h1>Annotation infrastructure for surgical video.</h1>
             <p className="about-lede">
-                Projects, tasks, and jobs live in the Octate dashboard. Uploaded video is decoded, annotations are stored, and the workspace opens when a job is ready.
+                Tasks and jobs live in the Octate dashboard. Uploaded video is decoded, annotations are stored, and the workspace opens when a job is ready.
             </p>
             <div className="about-grid">
                 <article>

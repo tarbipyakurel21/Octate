@@ -1304,6 +1304,21 @@ export class DrawHandlerImpl implements DrawHandler {
 
         this.canvas.on('mousedown.draw', (e: MouseEvent): void => {
             if (e.button === 0 && !e.altKey) {
+                // svg.draw.js does not close polygons when the first control
+                // point is clicked. Keep completion in CVAT's drawing path so
+                // the normal drawdone/drawstop lifecycle is preserved.
+                if (this.drawData.shapeType === 'polygon') {
+                    const paintHandler = this.drawInstance.remember('_paintHandler');
+                    const points = this.drawInstance.array().valueOf();
+                    const firstPoint = paintHandler?.set?.members?.[0]?.node;
+                    if (points.length >= 4 && e.target === firstPoint) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.drawInstance.draw('done');
+                        return;
+                    }
+                }
+
                 if (!initialized) {
                     this.drawInstance.draw(e, { snapToGrid: 0.1 });
                     initialized = true;

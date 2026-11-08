@@ -8,8 +8,6 @@ import { CreateTaskPage } from "./screens/CreateTaskPage";
 import { JobsPage } from "./screens/JobsPage";
 import { LandingPage } from "./screens/LandingPage";
 import { LoginPage } from "./screens/LoginPage";
-import { ProjectPage } from "./screens/ProjectPage";
-import { ProjectsPage } from "./screens/ProjectsPage";
 import { TaskPage } from "./screens/TaskPage";
 import { TasksPage } from "./screens/TasksPage";
 import "./tasks.css";
@@ -21,12 +19,10 @@ type Route =
     | { screen: "tasks" }
     | { screen: "create" }
     | { screen: "jobs" }
-    | { screen: "projects" }
-    | { screen: "project"; projectId: string }
     | { screen: "task"; taskId: string }
     | { screen: "annotate"; taskId: string; jobId: string };
 
-const protectedScreens = new Set<Route["screen"]>(["tasks", "create", "jobs", "projects", "project", "task", "annotate"]);
+const protectedScreens = new Set<Route["screen"]>(["tasks", "create", "jobs", "task", "annotate"]);
 
 function locationPath(): string {
     if (typeof window === "undefined") return "/";
@@ -39,9 +35,6 @@ function routeFrom(path: string): Route {
     if (path === "/login" || path === "/auth/login") return { screen: "login" };
     if (path === "/tasks/new") return { screen: "create" };
     if (path === "/jobs") return { screen: "jobs" };
-    if (path === "/projects") return { screen: "projects" };
-    const project = path.match(/^\/projects\/(\d+)$/);
-    if (project) return { screen: "project", projectId: project[1] };
     const job = path.match(/^\/tasks\/(\d+)\/jobs\/(\d+)$/);
     if (job) return { screen: "annotate", taskId: job[1], jobId: job[2] };
     const task = path.match(/^\/tasks\/(\d+)$/);
@@ -52,7 +45,6 @@ function routeFrom(path: string): Route {
 
 function sectionFor(route: Route): DashboardSection {
     if (route.screen === "create" || route.screen === "task" || route.screen === "annotate") return "tasks";
-    if (route.screen === "project") return "projects";
     if (route.screen === "login") return "login";
     return route.screen;
 }
@@ -194,15 +186,6 @@ export default function App() {
                         />
                     )}
                     {route.screen === "jobs" && <JobsPage onOpen={(job) => openAnnotation(job.task_id, job.id)} />}
-                    {route.screen === "projects" && <ProjectsPage onOpen={(project) => go(`/projects/${project.id}`)} />}
-                    {route.screen === "project" && (
-                        <ProjectPage
-                            projectId={route.projectId}
-                            onBack={() => go("/projects")}
-                            onOpenTask={(task) => go(`/tasks/${task.id}`)}
-                            onAnnotate={(task) => void annotateTask(task.id)}
-                        />
-                    )}
                 </>
             )}
         </>

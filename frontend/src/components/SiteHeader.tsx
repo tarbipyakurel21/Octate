@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, FolderKanban, Folders, Github, House, Info, ListTodo, LogOut } from "lucide-react";
+import { ChevronDown, FolderKanban, Github, House, Info, ListTodo, LogOut } from "lucide-react";
 import { OctateBrand } from "./OctateBrand";
 
-export type DashboardSection = "landing" | "about" | "projects" | "tasks" | "jobs" | "login";
+export type DashboardSection = "landing" | "about" | "tasks" | "jobs" | "login";
 
 export function SiteHeader({
     section,
@@ -39,7 +39,6 @@ export function SiteHeader({
             <nav className="landing-nav" aria-label="Primary">
                 {item("landing", "/", "Home", <House />)}
                 {item("about", "/about", "About", <Info />)}
-                {item("projects", "/projects", "Projects", <Folders />)}
                 {item("tasks", "/tasks", "Tasks", <FolderKanban />)}
                 {item("jobs", "/jobs", "Jobs", <ListTodo />)}
             </nav>
